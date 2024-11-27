@@ -6,14 +6,14 @@ a trio-based approach and Strelka2 somatic caller to create a new HG002 mosaic b
 ## Methods Overview
 
 1. Establish limit of detection (LOD) using GIAB reference mixtures
-2. Generate potential mosaic list with [Illumina 300X tumor-normal callset](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/mosaic_v1.10/GRCh38/SNV/SupplementaryFiles/HG002_GRCh38_Strelka2-Ill300X.vcf.gz), [GIABv4.2.1 small variant germline benchmark](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/), and [GRCh38 stratifications](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/genome-stratifications/v3.1/GRCh38/)
+2. Generate potential mosaics list with [Illumina 300X tumor-normal callset](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/mosaic_v1.10/GRCh38/SNV/SupplementaryFiles/HG002_GRCh38_Strelka2-Ill300X.vcf.gz), [GIABv4.2.1 small variant germline benchmark](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/), and [GRCh38 stratifications](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/genome-stratifications/v3.1/GRCh38/)
 3. Database creation that includes orthogonal datasets and filtering to identify mosaic candidates
 4. Manual curation of candidates
 5. External validation to refine draft benchmark
   
 ## Benchmark location and usage
 
-HG002 mosaic benchmark v1.1 was generated using GRCh38 as reference and is available at the [GIAB ftp site](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/mosaic_v1.10/GRCh38/SNV/). 
+HG002 mosaic benchmark v1.1 is available at the [GIAB ftp site](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/mosaic_v1.10/GRCh38/SNV/). 
 
 Use of this GIAB somatic resource includes, but is not limited to:
 
