@@ -40,9 +40,9 @@ Licenses/restrictions placed on the data, or limitations of reuse: Publicly rele
 Info for all GIAB reference and orthogonal datasets are found at [Supplementary Table 1](URL).
 GIAB Ashkenzai Jewish (AJ) trio WGS data (high coverage, Illumina 300X) are at the GIAB ftp links below. 
 
-* HG002-son [fastq](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/HG002_HiSeq300x_fastq/)
-* HG003-father [fastq](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG003_NA24149_father/NIST_HiSeq_HG003_Homogeneity-12389378/HG003_HiSeq300x_fastq/)
-* HG004-mother [fastq](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG004_NA24143_mother/NIST_HiSeq_HG004_Homogeneity-14572558/HG004_HiSeq300x_fastq/)
+* HG002 (son) [fastq](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/HG002_HiSeq300x_fastq/)
+* HG003 (father) [fastq](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG003_NA24149_father/NIST_HiSeq_HG003_Homogeneity-12389378/HG003_HiSeq300x_fastq/)
+* HG004 (mother) [fastq](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG004_NA24143_mother/NIST_HiSeq_HG004_Homogeneity-14572558/HG004_HiSeq300x_fastq/)
 
 Reference
 * GRCh38 [fasta](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/references/GRCh38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz), [fai](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/references/GRCh38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz.fai)
@@ -54,7 +54,7 @@ Author Information
 * Principal Investigator: Justin Zook, NIST, [jzook@nist.gov](mailto:jzook@nist.gov)
 * Nate Olson, NIST, [nathanael.olson@nist.gov](mailto:nathanael.olson@nist.gov)
 * Camille Daniels, MDIC, [cdaniels@mdic.org](mailto:cdaniels@mdic.org)
-* Adetola Abdulkadir, MDIC, [cdaniels@mdic.org](mailto:aabdulkadir@mdic.org)
+* Adetola Abdulkadir, MDIC, [aabdulkadir@mdic.org](mailto:aabdulkadir@mdic.org)
 
 
 <!-- 
