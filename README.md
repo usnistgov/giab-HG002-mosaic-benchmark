@@ -1,13 +1,16 @@
 # HG002 Mosaic Benchmark Set
 
 This repository contains the methodology used to characterize baseline mosaic variants in the [Genome In A Bottle (GIAB)](https://www.nist.gov/programs-projects/genome-bottle) reference cell line (HG002) using 
-a trio-based approach and Strelka2 somatic caller to create a new HG002 mosaic benchmark.
+a trio-based approach and a somatic caller to create a new HG002 mosaic benchmark. 
+
+GIAB reference WGS data from HG002 (son) was passed to Strelka2 as the tumor data and the combined parents’ data (HG003-father and HG004-mother) was passed as normal.
+Potential mosaics identified from the Illumina 300X tumor-normal callset were evaluated using high coverage BGI, Element, and Pacbio HiFi Revio orthogonal datasets.
 
 ## Methods Overview
 
 1. Establish limit of detection (LOD) using GIAB reference mixtures
 2. Generate potential mosaics list with [Illumina 300X tumor-normal callset](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/mosaic_v1.10/GRCh38/SNV/SupplementaryFiles/HG002_GRCh38_Strelka2-Ill300X.vcf.gz), [GIABv4.2.1 small variant germline benchmark](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/), and [GRCh38 stratifications](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/genome-stratifications/v3.1/GRCh38/)
-3. Database creation that includes orthogonal datasets and filtering to identify mosaic candidates
+3. Database creation that includes orthogonal datasets and subsequent filtering to identify mosaic candidates
 4. Manual curation of candidates
 5. External validation to refine draft benchmark
   
