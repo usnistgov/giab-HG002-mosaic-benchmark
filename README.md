@@ -31,11 +31,11 @@ READMEs, scripts, and figures from [*A robust benchmark for detecting low-freque
 
 All software information is located in [Supplementary Table 8](URL).
 
-##Sharing/Access Information
+## Sharing/Access Information
 
 Licenses/restrictions placed on the data, or limitations of reuse: Publicly released data are freely available for reuse without embargo.
 
-##Links to publicly accessible locations of data
+## Links to publicly accessible locations of data
 
 Info for all GIAB reference and orthogonal datasets are found at [Supplementary Table 1](URL).
 GIAB Ashkenzai Jewish (AJ) trio WGS data (high coverage, Illumina 300X) are at the GIAB ftp links below. 
@@ -52,8 +52,8 @@ Reference
 Author Information
 
 * Principal Investigator: Justin Zook, NIST, [jzook@nist.gov](mailto:jzook@nist.gov)
-* Nate Olson, NIST,[nathanael.olson@nist.gov](mailto:nathanael.olson@nist.gov)
-* Camille Daniels, MDIC,[cdaniels@mdic.org](mailto:cdaniels@mdic.org)
+* Nate Olson, NIST, [nathanael.olson@nist.gov](mailto:nathanael.olson@nist.gov)
+* Camille Daniels, MDIC, [cdaniels@mdic.org](mailto:cdaniels@mdic.org)
 * Adetola Abdulkadir, MDIC, [cdaniels@mdic.org](mailto:aabdulkadir@mdic.org)
 
 
