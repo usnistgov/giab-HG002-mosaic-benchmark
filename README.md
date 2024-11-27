@@ -14,7 +14,7 @@ Potential mosaics identified from the Illumina 300X tumor-normal callset were ev
 4. Manual curation of candidates
 5. External validation to refine draft benchmark
 
-![Trio-based methods](https://github.com/usnistgov/giab-HG002-mosaic-benchmark/blob/main/figures/Figure_1_trio_based_methodology.pdf)
+![Trio-based methods](https://github.com/usnistgov/giab-HG002-mosaic-benchmark/blob/main/figures/Figure_1_trio_based_methodology.png)
   
 ## Benchmark location and usage
 
