@@ -1,6 +1,6 @@
 #  GIAB AJ trio Illumina 300X Strelka2 run - HG002 mosaic benchmark  
 
-Purpose: Generate a somatic callset with AJ trio Illumina 300X bams, GRCh38 genome reference, and Strelka2 caller to determine potential mosaics for HG002 mosaic benchmark generation
+Purpose: Generate a somatic callset with GIAB AJ trio Illumina 300X bams, GRCh38 genome reference, and Strelka2 caller to determine potential mosaics for HG002 mosaic benchmark generation
 
 ## Pre-processing
 
@@ -38,7 +38,7 @@ for chr in {1..22} X Y; do
 done
 ```
 
-GRCh38 fasta, index, and bed files were uploaded to DNANexus using mamba env DNAnexus_CLI (dpxy client)
+GRCh38 fasta, index, and bed files were uploaded to DNANexus using mamba env DNAnexus_CLI (dpxy client).
 
 
 ## Strelka2 variant calling
