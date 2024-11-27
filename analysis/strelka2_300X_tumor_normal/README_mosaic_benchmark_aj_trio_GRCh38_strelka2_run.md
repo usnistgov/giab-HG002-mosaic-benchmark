@@ -28,7 +28,8 @@ to NIST Linux
 
 * GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fasta.gz
 * GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fasta.fai
-GRCh38.bed
+
+GRCh38.bed is enclosed in this repo
 
 ## Split bed file by chromosome (1-22, X, and Y)
 
