@@ -21,7 +21,7 @@ samtools index -@ 14 samtools_merged_HG003_HG004_GRCh38.300X.bam
 ```
 
 ## Get GRCh38 genome 
-###TO DO - FIX as these files are no longer available on site, ADD bed generation
+### TO DO - FIX as these files are no longer available on site, ADD bed generation
 
 GRCh38 files were downloaded from [GIAB ftp site](https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/references/GRCh38/)
 to NIST Linux
