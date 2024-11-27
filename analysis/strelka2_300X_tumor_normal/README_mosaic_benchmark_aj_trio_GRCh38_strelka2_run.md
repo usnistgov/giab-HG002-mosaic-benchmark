@@ -119,22 +119,21 @@ rtg vcfeval -b ~/git_repos/mosaic-benchmarking/resources/giab_benchmark_v4.2.1/H
 The false positive vcf.gz was filtered further to identify potential mosaics.
 
 ## Merge AJ trio V4.2.1 benchmark vcfs (this was already completed)
-
+### TO DO - fix this section
 ```
 zsh merge_benchmark_vcf.zsh
 ```
 Output in data/panel_design
 
-GRCh38_aj-trio_v4.2.1_merged-variants.vcf.gz
++ GRCh38_aj-trio_v4.2.1_merged-variants.vcf.gz
 
 ## Create list of potential mosaics
 
 The make_panel.zsh script was run to generate 
--AJ trio v4.2.1 benchmark bed intersection 
--AJ trio v4.2.1 benchmark complex union bed
--AJ trio v4.2.1 mosaic target bed (creating by subtracting complex union bed from benchmark bed intersection)
--Intersects vcfeval output (HG002 fp vcf.gz) with mosaic target bed to generate vcf with variants 
-that occur in mosaic target regions
+* AJ trio v4.2.1 benchmark bed intersection 
+* AJ trio v4.2.1 benchmark complex union bed
+* AJ trio v4.2.1 mosaic target bed (creating by subtracting complex union bed from benchmark bed intersection)
+  * Intersects vcfeval output (HG002 fp vcf.gz) with mosaic target bed to generate vcf with variantsthat occur in mosaic target regions
 
 From mosaic-benchmarking/, run
 
@@ -143,7 +142,7 @@ zsh ~/git_repos/mosaic-benchmarking/scratch/make-draft-benchmark/make_panel.zsh
 ```
 
 Outputs
-aj_trio_complex_union.bed
-GRCh38_aj_trio_v.4.2.1_mosaic-target.bed
-GRCh38_HG002_v0.0.1_mosaic-benchmark.vcf - 366,728 variants (fall within mosaic target regions; file used to create potential mosaics database)
++ aj_trio_complex_union.bed
++ GRCh38_aj_trio_v.4.2.1_mosaic-target.bed
++ GRCh38_HG002_v0.0.1_mosaic-benchmark.vcf - 366,728 variants (fall within mosaic target regions; file used to create potential mosaics database)
 
