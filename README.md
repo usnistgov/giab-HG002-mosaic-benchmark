@@ -1,15 +1,15 @@
 # HG002 Mosaic Benchmark Set
 
-This repository contains the methodology used to characterize baseline mosaic variants in a [Genome In A Bottle (GIAB)](https://www.nist.gov/programs-projects/genome-bottle) reference cell line (HG002) using 
+This repository contains the methodology used to characterize baseline mosaic variants in the [Genome In A Bottle (GIAB)](https://www.nist.gov/programs-projects/genome-bottle) reference cell line (HG002) using 
 a trio-based approach and Strelka2 somatic caller to create a new HG002 mosaic benchmark.
 
 ## Methods Overview
 
-  1. Establish limit of detection (LOD) using GIAB reference mixtures
-  2. Generate potential mosaic list with tumor-normal callset, GIABv4.2.1 small variant germline benchmark, and GRCh38 stratifications
-  3. Database creation and filtering to identify mosaic candidates
-  4. Manual curation of candidates
-  5. External validation to refine draft benchmark
+1. Establish limit of detection (LOD) using GIAB reference mixtures
+2. Generate potential mosaic list with tumor-normal callset, GIABv4.2.1 small variant germline benchmark, and GRCh38 stratifications
+3. Database creation and filtering to identify mosaic candidates
+4. Manual curation of candidates
+5. External validation to refine draft benchmark
   
 ## Benchmark details and usage
 
@@ -51,10 +51,10 @@ Reference
 
 Author Information
 
-*Principal Investigator: Justin Zook, NIST, [jzook@nist.gov](mailto:jzook@nist.gov)
-*Nate Olson, NIST,[nathanael.olson@nist.gov](mailto:nathanael.olson@nist.gov)
-*Camille Daniels, MDIC,[cdaniels@mdic.org](mailto:cdaniels@mdic.org)
-*Adetola Abdulkadir, MDIC, [cdaniels@mdic.org](mailto:aabdulkadir@mdic.org)
+* Principal Investigator: Justin Zook, NIST, [jzook@nist.gov](mailto:jzook@nist.gov)
+* Nate Olson, NIST,[nathanael.olson@nist.gov](mailto:nathanael.olson@nist.gov)
+* Camille Daniels, MDIC,[cdaniels@mdic.org](mailto:cdaniels@mdic.org)
+* Adetola Abdulkadir, MDIC, [cdaniels@mdic.org](mailto:aabdulkadir@mdic.org)
 
 
 <!-- 
