@@ -1,0 +1,100 @@
+---
+title: "In Silico LOD Detection Evaluation"
+date: '`r Sys.Date()`'
+output: 
+    bookdown::html_document2:
+        toc: true
+        toc_float: true
+        df_print: paged
+        code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(here)
+```
+
+# Objective
+Summarize results of in silico experiment to determine the limit of detection for 
+mosaic variant detect using the strelka2 somatic variant caller.
+
+# Methods
+- Mixtures of 300 X Illumina reads
+    - Chromosome 20 only
+    - AFs 
+        - 0.00 All HG003
+        - 0.01 98:2
+        - 0.05 90:10
+        - 0.10 80:20
+        - 0.25 50:50
+        - 0.5 All HG002
+- Variant calling using strelka2, performed using the strelka2 app on DNAnexus
+- Benchmarking with happy (vcf post processing - TODO add script reference) happy run using pFDA app
+- Characterizing results
+- Manual Curation
+- Nuances and potential issues with using strelka2 for mosaic variant detection.
+
+# Results
+```{r}
+insilico_lod_df <- read_excel(here("analysis/insilico_lod/Mixture Summary SNPs 01072020.xlsx"),
+                              .name_repair = "universal")
+
+tidy_lod_df <- insilico_lod_df %>%
+    filter(AF != -1) %>%
+    select(-starts_with("SNP")) %>%
+    rename(
+        fnsnp_pass_count = FN.SNP.PASS,
+        fnsnp_pass_pct =  FN.SNP.PASS..,
+        fnsnp_all_count = FN.SNP.ALL,
+        fnsnp_all_pct = FN.SNP.ALL..,
+        recall_pass_val = PASS.Metric.Recall,
+        recall_all_val = All.Metric.Recall
+    ) %>%
+    pivot_longer(
+        cols = c(
+            fnsnp_pass_count,
+            fnsnp_all_count,
+            fnsnp_pass_pct,
+            fnsnp_all_pct,
+            recall_pass_val,
+            recall_all_val
+        ),
+        names_to = c("metric", "var_filter", "met_type"),
+        names_sep = "_",
+        values_to = "value"
+    ) 
+```
+
+
+- AF 0.1 were consistently detected by strelka2 and most variants were detected with AF 0.05. 
+- Will start with the assumption that we are able to detect mosaic variants in the RM DNA down to 10% AF using strelka2.
+- Can use duplex seq data to validate candidate and putative mosaic variants then optimize the filter parameters is appropriate.
+```{r}
+
+    
+ggplot(tidy_lod_df) + 
+    geom_vline(aes(xintercept = 0.1), linetype = 1) +
+    geom_vline(aes(xintercept = 0.05), linetype = 2) +
+    geom_point(aes(x = AF, y = value, fill = var_filter), shape = 21) + 
+    facet_wrap(~metric*met_type, ncol = 1, scales = "free_y") + 
+    theme_bw()
+    
+```
+
+
+# Session Information
+## System Information
+```{r}
+sessioninfo::platform_info()
+```
+
+
+## Package Versions
+```{r}
+sessioninfo::package_info() %>% 
+    filter(attached = TRUE) %>% 
+    select(package, loadedversion, date, source) %>%
+    knitr::kable(booktabs = TRUE, row.names = FALSE)
+```
