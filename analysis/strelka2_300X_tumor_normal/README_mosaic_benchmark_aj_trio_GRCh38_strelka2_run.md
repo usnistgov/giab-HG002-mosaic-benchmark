@@ -4,13 +4,11 @@ Purpose: Generate a somatic callset with AJ trio Illumina 300X bams, GRCh38 geno
 
 ## Pre-processing
 
-AJ trio Illumina 300X NovoAlign GRCh38 bams and indexes were downloaded from [GIAB ftp site](https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/). Bam files are already sorted.
+AJ trio Illumina 300X NovoAlign GRCh38 bams and indexes were downloaded from [GIAB ftp site](https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/). 
 
-HG002 (son) [bam](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG002.GRCh38.300x.bam) [bai](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG002.GRCh38.300x.bam.bai)
-
-HG003 (father) [bam](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG003_NA24149_father/NIST_HiSeq_HG003_Homogeneity-12389378/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG003.GRCh38.300x.bam) [bai](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG003_NA24149_father/NIST_HiSeq_HG003_Homogeneity-12389378/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG003.GRCh38.300x.bam.bai)
-
-HG004 (mother) [bam](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG004_NA24143_mother/NIST_HiSeq_HG004_Homogeneity-14572558/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG004.GRCh38.300x.bam) [bai](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG004_NA24143_mother/NIST_HiSeq_HG004_Homogeneity-14572558/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG004.GRCh38.300x.bam.bai)
+* HG002 (son) [bam](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG002.GRCh38.300x.bam) [bai](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG002.GRCh38.300x.bam.bai)
+* HG003 (father) [bam](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG003_NA24149_father/NIST_HiSeq_HG003_Homogeneity-12389378/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG003.GRCh38.300x.bam) [bai](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG003_NA24149_father/NIST_HiSeq_HG003_Homogeneity-12389378/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG003.GRCh38.300x.bam.bai)
+* HG004 (mother) [bam](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG004_NA24143_mother/NIST_HiSeq_HG004_Homogeneity-14572558/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG004.GRCh38.300x.bam) [bai](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG004_NA24143_mother/NIST_HiSeq_HG004_Homogeneity-14572558/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG004.GRCh38.300x.bam.bai)
 
 ## Merge and index parental bams to create a normal bam 
 
@@ -23,12 +21,13 @@ samtools index -@ 14 samtools_merged_HG003_HG004_GRCh38.300X.bam
 ```
 
 ## Get GRCh38 genome 
+###TO DO - FIX as these files are no longer available on site, ADD bed generation
 
 GRCh38 files were downloaded from [GIAB ftp site](https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/references/GRCh38/)
 to NIST Linux
 
-GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fasta.gz
-GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fasta.fai
+* GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fasta.gz
+* GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fasta.fai
 GRCh38.bed
 
 ## Split bed file by chromosome (1-22, X, and Y)
@@ -47,10 +46,10 @@ GRCh38 fasta, index, and bed files were uploaded to DNANexus using mamba env DNA
 Strelka2 app was run on DNAnexus web GUI. The workflow is designed to take tumor/normal bam, bai, and reference genome files as input and performs somatic variant calling. 
 
 Inputs 
-tumor bam: HG002.GRCh38.300x.bam (son)
-normal bam: samtools_merged_HG003_HG004.300x.bam (combined parents)
-reference: GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fasta.gz
-targets bed: beds/GRCh38_chr_#.bed 
+* tumor bam: HG002.GRCh38.300x.bam (son)
+* normal bam: samtools_merged_HG003_HG004.300x.bam (combined parents)
+* reference: GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fasta.gz
+* targets bed: beds/GRCh38_chr_#.bed 
 
 Output is sent to a DNAnexus directory and downloaded locally.
 
@@ -99,7 +98,7 @@ sh reformat_strelka2.sh HG002_GRCh38_normals_removed_sorted.vcf.gz <prefix(i.e. 
 ```
 
 ## Compare strelka2 normals removed vcf to GIAB GRCh38 4.2.1 benchmark
-## Run using which mamba env - ADD this info and amend directories to match this repo
+### TO DO - ADD which mamba env and amend directories to match this repo
 
 ```
 rtg vcfeval -b ~/git_repos/mosaic-benchmarking/resources/giab_benchmark_v4.2.1/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz \
@@ -114,8 +113,8 @@ rtg vcfeval -b ~/git_repos/mosaic-benchmarking/resources/giab_benchmark_v4.2.1/H
 --threads=3    
 ```
 
-tp.vcf.gz - 389,494 true positive variants
-fp.vcf.gz - 425,679 false positive variants
+* tp.vcf.gz: 389,494 true positive variants
+* fp.vcf.gz: 425,679 false positive variants
 
 The false positive vcf.gz was filtered further to identify potential mosaics.
 
