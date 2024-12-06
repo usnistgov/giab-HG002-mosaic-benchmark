@@ -32,11 +32,11 @@ Use of this GIAB somatic resource includes, but is not limited to:
 
 ## Repository contents
 
-READMEs, scripts, and figures from [*A robust benchmark for detecting low-frequency variants in the HG002 Genome In A Bottle NIST reference material*](URL) are contained herein. 
+READMEs, scripts, and figures from [*A robust benchmark for detecting low-frequency variants in the HG002 Genome In A Bottle NIST reference material*](https://doi.org/10.1101/2024.12.02.625685) are contained herein. 
 
 ## Software requirements
 
-All software information is located in [Supplementary Table 8](URL).
+All software information is located in [Supplementary Table 8](https://www.biorxiv.org/content/10.1101/2024.12.02.625685v1.supplementary-material).
 
 ## Sharing/Access Information
 
@@ -44,7 +44,7 @@ Licenses/restrictions placed on the data, or limitations of reuse: Publicly rele
 
 ## Links to publicly accessible locations of data
 
-Info for all GIAB reference and orthogonal datasets are found at [Supplementary Table 1](URL).
+Info for all GIAB reference and orthogonal datasets are found at [Supplementary Table 1](https://www.biorxiv.org/content/10.1101/2024.12.02.625685v1.supplementary-material).
 GIAB Ashkenzai Jewish (AJ) trio WGS data (high coverage, Illumina 300X) are at the GIAB ftp links below. 
 
 * HG002 (son) [fastq](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/HG002_HiSeq300x_fastq/)
@@ -56,7 +56,7 @@ Reference
 
 ## General Information
 
-Author Information
+Authors
 
 * Principal Investigator: Justin Zook, NIST, [jzook@nist.gov](mailto:jzook@nist.gov)
 * Nate Olson, NIST, [nathanael.olson@nist.gov](mailto:nathanael.olson@nist.gov)

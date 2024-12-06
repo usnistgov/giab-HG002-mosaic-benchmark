@@ -39,7 +39,7 @@ for chr in {1..22} X Y; do
 done
 ```
 
-GRCh38 fasta, index, and bed files were uploaded to DNANexus using mamba env DNAnexus_CLI (dpxy client).
+GRCh38 fasta, index, and bed files were uploaded to DNAnexus using mamba env DNAnexus_CLI (dpxy client).
 
 
 ## Strelka2 variant calling
