@@ -1,0 +1,14 @@
+https://dl.dnanex.us/F/D/kY9Jv6J109ffzx4jqBg8ZBjx10k85GkgF987Z8XJ/pacbio_sequel_ccsB_15kb_HG002_bam_readcount_q40_b25_snv.tsv
+https://dl.dnanex.us/F/D/v7bjX5k2V2Qqb7pVqzY8K8jvxZfv4K13yxPkKKbX/pacbio_sequel_ccsB_15kb_HG002_bam_readcount_q40_b25_indel.tsv
+https://dl.dnanex.us/F/D/6gGgfjy71b1kpfyX0qyP5V21b3JGPG4Qq54XZQ03/pacbio_sequel_ccsA_10kb_HG002_bam_readcount_q40_b25_snv.tsv
+https://dl.dnanex.us/F/D/GXygy8j1y1PXxYYzGb8F75FYzx0fz6Ggjy92FkvQ/pacbio_sequel_ccsA_10kb_HG002_bam_readcount_q40_b25_indel.tsv
+https://dl.dnanex.us/F/D/3vGPbg0z5jFXYfVKg6620PjvfQfQF9kKg10pXvgg/pacbio_revio_hifi_HG002_bam_readcount_q40_b25_snv.tsv
+https://dl.dnanex.us/F/D/Pjq33b3GpZ2J8JyZ116vGzp3YZYjxj696JZkK64K/pacbio_revio_hifi_HG002_bam_readcount_q40_b25_indel.tsv
+https://dl.dnanex.us/F/D/xz3qyy7xyZfk9Xpx7ygx497FJ2bbZ0jJB9FVvbgz/illumina300X_HG002_bam_readcount_q40_b25_snv.tsv
+https://dl.dnanex.us/F/D/4VVkvGQBBkq5Q6ZF177xF3yGgb4Qj1YfpX52639Z/illumina300X_HG002_bam_readcount_q40_b25_indel.tsv
+https://dl.dnanex.us/F/D/1Y7xyy8QB0FbVkJ34qJqv9qxF7X54JFZVjbgk6XG/element_standard_insert_HG002_bam_readcount_q40_b25_snv.tsv
+https://dl.dnanex.us/F/D/6JgVGyvYbyBx8gYK3gBF49VGxfB1qfBX40vbFgxB/element_standard_insert_HG002_bam_readcount_q40_b25_indel.tsv
+https://dl.dnanex.us/F/D/1JBY4KJ8XJJZgYVJ7VkVY6yq96ZG9yKvfb9J9vP1/element_long_insert_HG002_bam_readcount_q40_b25_snv.tsv
+https://dl.dnanex.us/F/D/Pgb41jZQ0bfG1fvk32X1BXxZQ0BYk4zYK2gb01pK/element_long_insert_HG002_bam_readcount_q40_b25_indel.tsv
+https://dl.dnanex.us/F/D/QVyqXzJz9z5y8kvZP08Fjbk4fbzB86gZfyVQ6kk8/bgi_HG002_bam_readcount_q40_b25_snv.tsv
+https://dl.dnanex.us/F/D/6zffQyBvgGB294VKYQ052YkPG7Qg9y8G63yqjX72/bgi_HG002_bam_readcount_q40_b25_indel.tsv

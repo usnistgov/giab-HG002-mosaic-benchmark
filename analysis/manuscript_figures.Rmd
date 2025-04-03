@@ -26,16 +26,27 @@ library(ggupset)
 ```{r}
 ## Loading manually curated variants data
 chrom_order <- paste0("chr", c(1:22, "X", "Y"))
-curated_variants <- read_tsv(here("data", "igv_curated_variants_RM.tsv")) %>%
-    arrange(AF) %>%
+curated_variants <- read_tsv(
+    here("data", "igv_curated_variants_RM.tsv")
+) %>%
+    dplyr::arrange(AF) %>%
     mutate(
         index = row_number(),
         CHROM = factor(CHROM, levels = chrom_order)
     ) %>%
-    arrange(CHROM, POS, REF, ALT)
+    dplyr::arrange(CHROM, POS, REF, ALT)
+
+benchmark_vars <- curated_variants %>%
+    filter(RM_KEEP_REMOVE == "KEEP") %>%
+    select(CHROM, POS, REF, ALT)
 
 curated_variants_longer <- pivot_longer(curated_variants,
-    cols = c("BGI_mut_freq", "Element_mut_freq", "Pacbio_mut_freq", "Illumina_mut_freq"),
+    cols = c(
+        "BGI_mut_freq",
+        "Element_mut_freq",
+        "Pacbio_mut_freq",
+        "Illumina_mut_freq"
+    ),
     names_to = "Method",
     values_to = "VAF"
 ) %>%
@@ -50,11 +61,17 @@ common_variants <- read_tsv(here("data", "RM_VAF_fig_70cand_updated.tsv")) %>%
     mutate(index = row_number())
 
 curated_variants_longer_pacbio_sep <- read_tsv(here("data", "curated_variants_longer_pacbio_sep.tsv"))
+
+benchmark_source_comp_df <- read_tsv(
+    here("data", "ortho_support", "combined_bamread_count.tsv")
+) %>%
+    right_join(benchmark_vars)
 ```
+
 
 ### In Silico LOD Data
 ```{r}
-insilico_lod_df <- list.files(here("analysis/lod/strelka2_chrom20_mixtures/all_summaries"), full.names = TRUE) %>%
+insilico_lod_df <- list.files(here("data/insilico_lod"), full.names = TRUE) %>%
     set_names(., str_extract(., "(?<=af)[:digit:]*(?=_result)")) %>%
     map_dfr(read_csv, .id = "AF") %>%
     mutate(AF = as.numeric(AF))
@@ -64,46 +81,15 @@ insilico_lod_df <- list.files(here("analysis/lod/strelka2_chrom20_mixtures/all_s
 
 ### Figure 2
 ```{r}
-annot_df <- data.frame(
-    Variant_Category = "**Excluded** from Benchmark",
-    l_xmin = -0.25,
-    l_xmax = 25,
-    l_ymin = -0.03,
-    l_ymax = 0.05,
-    r_xmin = 113,
-    r_xmax = 137,
-    r_ymin = -0.03,
-    r_ymax = 0.05,
-    l_text = "Lack of 300X support",
-    l_textx = 6,
-    l_texty = 0.4,
-    r_text = "Lack of long read support",
-    r_textx = 109,
-    r_texty = 0.4,
-    l_arrowx = -1.5,
-    l_arrowy = 0.36,
-    l_arrowxend = 1,
-    l_arrowyend = 0.02,
-    r_arrowx = 110,
-    r_arrowy = 0.36,
-    r_arrowxend = 116,
-    r_arrowyend = 0.03
-)
-
 ortho_vafs_df <- curated_variants_longer %>%
     mutate(Variant_Category = case_when(
-        RM_KEEP_REMOVE == "KEEP" ~ "Mosaic Benchmark",
-        RM_KEEP_REMOVE != "KEEP" ~ "Excluded from Benchmark",
+        RM_KEEP_REMOVE == "KEEP" ~ "**Included** in Benchmark",
+        RM_KEEP_REMOVE != "KEEP" ~ "**Excluded** from Benchmark",
         TRUE ~ "ERROR"
-    )) %>%
-    mutate(Variant_Category = gsub(
-        "((Excluded|Mosaic Benchmark))",
-        "**\\1**",
-        Variant_Category
     ))
 
 (curated_ortho_vafs_fig <- ggplot(
-    curated_variants_longer,
+    ortho_vafs_df,
     aes(x = index, y = VAF)
 ) +
     annotate("rect",
@@ -111,50 +97,25 @@ ortho_vafs_df <- curated_variants_longer %>%
         ymin = 0.05, ymax = 0.3,
         alpha = 0.4, fill = "gray"
     ) +
-    geom_line(
-        data = ortho_vafs_df,
-        aes(group = index), linewidth = 0.8
-    ) +
-    geom_point(
-        data = ortho_vafs_df,
-        aes(fill = Method), size = 5, shape = 21, color = "grey40"
-    ) +
+    geom_line(aes(group = index), linewidth = 0.5) +
+    geom_point(aes(fill = Method), shape = 21, color = "grey40") +
     scale_color_viridis() +
+    guides(fill = guide_legend(
+        nrow = 1,
+        position = "bottom",
+        direction = "horizontal",
+        title = "Sequencing Method"
+    )) +
+    labs(x = "Strelka2 VAF", y = "VAF") +
     theme_bw() +
-    xlab("Ordered by Strelka2 VAF") +
-    ylab("Sequencing Method VAF") +
     theme(
-        axis.text = element_text(size = 14),
-        plot.title = element_text(size = 22),
-        axis.title.x = element_text(size = 22),
-        axis.title.y = element_text(size = 22),
+        strip.text = ggtext::element_markdown(),
         axis.text.x = element_blank(),
-        legend.title = element_text(size = 19),
-        legend.text = element_text(size = 19),
-        legend.position = "bottom", legend.box = "vertical"
+        axis.ticks.x = element_blank()
     ) +
-    theme(plot.title = element_text(hjust = 0.5)) +
     facet_wrap(
-        ~ factor(Variant_Category,
-            levels = c("**Mosaic Benchmark**", "**Excluded** from Benchmark")
-        ),
+        ~Variant_Category,
         ncol = 1
-    ) +
-    theme(
-        strip.text = ggtext::element_markdown(size = 20),
-        legend.text = ggtext::element_markdown(size = 19)
-    ) +
-    geom_text(data = annot_df, aes(x = r_textx, y = r_texty, label = r_text), size = 6) +
-    geom_text(data = annot_df, aes(x = l_textx, y = l_texty, label = l_text), size = 6) +
-    geom_segment(
-        data = annot_df,
-        aes(x = l_arrowx, y = l_arrowy, xend = l_arrowxend, yend = l_arrowyend),
-        arrow = arrow(length = unit(0.3, "cm"), type = "closed")
-    ) +
-    geom_segment(
-        data = annot_df,
-        aes(x = r_arrowx, y = r_arrowy, xend = r_arrowxend, yend = r_arrowyend),
-        arrow = arrow(length = unit(0.3, "cm"), type = "closed")
     )
 )
 ```
@@ -163,222 +124,88 @@ ortho_vafs_df <- curated_variants_longer %>%
 ggsave(
     filename = here("figures", "fig2_curated-variants.pdf"),
     plot = curated_ortho_vafs_fig,
-    height = 6, width = 11
+    height = 6, width = 8
 )
 ```
 
 ### Figure 3
 
-#### Curated Variants VAF
-
-```{r mosaic_VAF_plot, message = FALSE}
+```{r currated_VAF, message = FALSE}
 (curated_variants_hist <- curated_variants %>%
     mutate(combined_VAF = x_ci_no_Dup / n_ci_no_Dup) %>%
     ggplot(aes(
-        x = combined_VAF,
-        color = RM_CURATION,
-        fill = RM_CURATION
+        x = combined_VAF
     )) +
-    geom_histogram(color = "black", position = "identity", bins = 40) +
-    geom_vline(xintercept = c(0.05, 0.3), linetype = "dashed", color = "black") +
-    scale_color_manual(values = c("#00BFC4", "#F8766D")) +
-    scale_fill_manual(
-        values = c("#00BFC4", "#F8766D"),
-        labels = c("Mosaic Benchmark (85)", "Excluded from Benchmark (50)")
+    geom_vline(
+        xintercept = c(0.05, 0.3),
+        linetype = "dashed", color = "black"
+    ) +
+    geom_histogram(
+        color = "black",
+        position = "identity", bins = 40, na.rm = TRUE
     ) +
     labs(
         x = "Variant Allele Frequency (VAF)",
-        y = "Count"
+        y = "# of Variants"
     ) +
-    theme_light() +
+    theme_bw() +
     theme(
-        legend.title = element_blank(), legend.position = "bottom",
-        strip.text = element_blank()
+        strip.text = ggtext::element_markdown()
     ) +
     facet_wrap(~RM_CURATION,
-        ncol = 2,
+        ncol = 1,
         labeller = labeller(RM_CURATION = c(
-            "MOSAIC" = "Mosaic Benchmark",
-            "NOT MOSAIC" = "Excluded from Benchmark"
+            "MOSAIC" = "**Included** in Benchmark",
+            "NOT MOSAIC" = "**Excluded** from Benchmark"
         ))
     )
 )
 ```
 
-#### Genomic Context Upset
-
-```{r mosaic_variant_upset_plot, message = FALSE}
-# Create upset plot using GRCh38 genomic context annotations from curated variants df
-(upset_plot <- curated_variants %>%
-    mutate(
-        lowmappability = if_else(easy_to_map == "hit", FALSE, TRUE),
-        not_lowmappability = if_else(easy_to_map == "hit", TRUE, FALSE),
-        homopolymer = if_else(homopolymer_region == "hit", TRUE, FALSE),
-        nonhomopolymer = if_else(homopolymer_region == "hit", FALSE, TRUE)
-    ) %>%
-    group_by(CHROM, POS, REF, ALT, RM_CURATION) %>%
-    pivot_longer(
-        cols = c(not_lowmappability, lowmappability, homopolymer, nonhomopolymer),
-        names_to = "genomic_context",
-        values_to = "hit"
-    ) %>%
-    filter(hit) %>%
-    mutate(RM_CURATION = factor(RM_CURATION, levels = c("NOT MOSAIC", "MOSAIC"))) %>%
-    summarise(genomic_context = list(genomic_context)) %>%
-    ggplot(aes(x = genomic_context, fill = RM_CURATION)) +
-    geom_bar(color = "black") +
-    scale_x_upset() +
-    labs(x = "Genomic Context", y = "Count") +
-    scale_fill_discrete(labels = c("Excluded from Benchmark", "Mosaic Benchmark")) +
-    theme_bw() +
-    theme(legend.title = element_blank(), legend.position = "none"))
-```
-
-#### Create panel containing VAF and upset plot 
-
-```{r histo_upset panel}
-(histo_upset_panel <- curated_variants_hist /
-    upset_plot +
-    plot_annotation(tag_levels = "a") &
-    theme(plot.tag = element_text(face = "bold")) &
-    plot_layout(guides = "collect") +
-        theme(legend.position = "none"))
-```
 
 ```{r}
 ggsave(
-    plot = histo_upset_panel,
-    filename = here("figures", "fig3_curated-variants.pdf"),
-    height = 6, width = 11
+    plot = curated_variants_hist,
+    filename = here("figures", "fig3_curated-variants-VAF.pdf"),
+    height = 6, width = 4
 )
 ```
 
 ### Figure 4
 
 ```{r}
-# Bringing in the Non-RM data and selecting only Element and Pacbio results
-non_RM_curated_variants <- curated_variants_longer_pacbio_sep %>%
-    select(
-        CHROM, POS, REF, ALT, AF,
-        Element_depth, Element_alt_depth, Element_map_qual, Element_base_qual,
-        Pacbio_revio_depth, Pacbio_revio_alt_depth, Pacbio_revio_map_qual, Pacbio_revio_base_qual,
-        Pacbio_sequel_depth, Pacbio_sequel_alt_depth, Pacbio_sequel_map_qual, Pacbio_sequel_base_qual,
-        Method, VAF
+(source_vaf_comp <- benchmark_source_comp_df %>%
+    filter(
+        str_detect(platform, "element|pacbio"),
+        !str_detect(platform, "long"),
+        !str_detect(platform, "sequel")
     ) %>%
-    filter(Method %in% c("Element", "Pacbio_revio", "Pacbio_sequel")) %>%
-    mutate(Source = "Non RM") %>%
-    mutate(Element_mutfreq_nonRM = Element_alt_depth / Element_depth) %>%
-    mutate(Pacbio_revio_mutfreq_nonRM = Pacbio_revio_alt_depth / Pacbio_revio_depth) %>%
-    mutate(Pacbio_sequel_mutfreq_nonRM = Pacbio_sequel_alt_depth / Pacbio_sequel_depth) %>%
-    select(
-        CHROM, POS, REF, ALT, AF,
-        Element_mutfreq_nonRM,
-        Pacbio_revio_mutfreq_nonRM,
-        Pacbio_sequel_mutfreq_nonRM
-    )
-
-common_variants_pacbio_element_sep <- pivot_longer(common_variants,
-    cols = c(
-        "BGI_mut_freq", "Element_standard_mut_freq", "Element_long_mut_freq",
-        "Pacbio_revio_mut_freq", "Pacbio_sequel_mut_freq", "Illumina_mut_freq"
-    ),
-    names_to = "Method",
-    values_to = "VAF"
-) %>%
-    mutate(Method = str_replace(Method, "_mut_freq", "")) %>%
-    mutate(Method = gsub("Illumina", "Illumina 300X", Method))
-
-rm_vs_nonrm_pairwise <- common_variants_pacbio_element_sep %>%
-    select(
-        CHROM, POS, REF, ALT, AF,
-        Element_depth, Element_alt_depth, Element_map_qual, Element_base_qual,
-        Element_standard_depth, Element_standard_alt_depth, Element_standard_map_qual, Element_standard_base_qual,
-        Element_long_depth, Element_long_alt_depth, Element_long_map_qual, Element_long_base_qual,
-        Pacbio_revio_depth, Pacbio_revio_alt_depth, Pacbio_revio_map_qual, Pacbio_revio_base_qual,
-        Pacbio_sequel_depth, Pacbio_sequel_alt_depth, Pacbio_sequel_map_qual, Pacbio_sequel_base_qual,
-        Method, VAF
+    mutate(tech = str_remove(platform, "_.*")) %>%
+    group_by(dna_source, tech, CHROM, POS, REF, ALT) %>%
+    summarise(VAF = sum(alt_count) / sum(depth)) %>%
+    mutate(
+        idx = paste0(CHROM, POS, REF, ALT),
+        dna_source = factor(dna_source, levels = c("nonRM", "RM")),
+        tech = factor(tech, levels = c("element", "pacbio"), labels = c("Element", "PacBio Revio"))
     ) %>%
-    filter(Method %in% c("Element", "Element_standard", "Element_long", "Pacbio_revio", "Pacbio_sequel")) %>%
-    mutate(Source = "RM") %>%
-    mutate(Element_standard_mutfreq_RM = Element_standard_alt_depth / Element_standard_depth) %>%
-    mutate(Element_long_mutfreq_RM = Element_long_alt_depth / Element_long_depth) %>%
-    mutate(Element_mutfreq_RM = Element_alt_depth / Element_depth) %>%
-    mutate(Pacbio_revio_mutfreq_RM = Pacbio_revio_alt_depth / Pacbio_revio_depth) %>%
-    mutate(Pacbio_sequel_mutfreq_RM = Pacbio_sequel_alt_depth / Pacbio_sequel_depth) %>%
-    select(
-        CHROM, POS, REF, ALT, AF,
-        Element_mutfreq_RM, Element_standard_mutfreq_RM, Element_long_mutfreq_RM,
-        Pacbio_revio_mutfreq_RM, Pacbio_sequel_mutfreq_RM
-    ) %>%
-    left_join(
-        non_RM_curated_variants,
-        by = c("CHROM", "POS", "REF", "ALT")
-    ) %>%
-    select(-AF.x) %>%
-    rename(AF = AF.y) %>%
-    distinct() %>%
-    arrange(AF) %>%
-    mutate(index = row_number())
-
-rm_vs_nonrm_pairwise_preprint <- rm_vs_nonrm_pairwise %>%
-    select(Element_mutfreq_RM, Element_mutfreq_nonRM) %>%
-    rename(mutfreq_RM = Element_mutfreq_RM, mutfreq_nonRM = Element_mutfreq_nonRM) %>%
-    mutate(Method = "Element") %>%
-    rbind(rm_vs_nonrm_pairwise %>%
-        select(Pacbio_revio_mutfreq_RM, Pacbio_revio_mutfreq_nonRM) %>%
-        rename(mutfreq_RM = Pacbio_revio_mutfreq_RM, mutfreq_nonRM = Pacbio_revio_mutfreq_nonRM) %>%
-        mutate(Method = "Pacbio Revio"))
-
-rm_vs_nonrm_pairwise_preprint_Element <- rm_vs_nonrm_pairwise_preprint %>%
-    filter(Method == "Element") %>%
-    mutate(mutation = row_number())
-
-rm_vs_nonrm_pairwise_preprint_Pacbio_Revio <- rm_vs_nonrm_pairwise_preprint %>%
-    filter(Method == "Pacbio Revio") %>%
-    mutate(mutation = row_number())
-
-wilcox_rm_vs_nonrm_pairwise_preprint_Element <- rm_vs_nonrm_pairwise_preprint_Element %>%
-    rename("non-RM" = mutfreq_nonRM, "RM" = mutfreq_RM) %>%
-    pivot_longer(cols = c("non-RM", "RM"), names_to = "Sample Source", values_to = "VAF")
-
-wilcox_rm_vs_nonrm_pairwise_preprint_Pacbio_Revio <- rm_vs_nonrm_pairwise_preprint_Pacbio_Revio %>%
-    rename("non-RM" = mutfreq_nonRM, "RM" = mutfreq_RM) %>%
-    pivot_longer(
-        cols = c("non-RM", "RM"),
-        names_to = "Sample Source",
-        values_to = "VAF"
-    )
-
-wilcox_rm_vs_nonrm_pairwise_preprint <- rbind(wilcox_rm_vs_nonrm_pairwise_preprint_Element, wilcox_rm_vs_nonrm_pairwise_preprint_Pacbio_Revio)
-```
-
-
-```{r}
-(RMvsNonRM_paired_wilcox_preprint <- ggpaired(wilcox_rm_vs_nonrm_pairwise_preprint,
-    x = "Sample Source", y = "VAF", id = "mutation",
-    color = "Method", line.color = "gray", line.size = 0.4,
-    palette = c("#7CAE00", "#C77CFF"),
-    facet.by = "Method"
-) +
-    stat_compare_means(paired = TRUE, size = 6) +
+    ggpaired(
+        x = "dna_source", fill = "tech",
+        y = "VAF",
+        id = "idx",
+        facet.by = "tech",
+        line.color = "gray",
+        line.size = 0.4,
+        palette = c("#7CAE00", "#C77CFF"),
+    ) +
+    stat_compare_means(paired = TRUE) +
     ylim(0, 0.4) +
-    ylab("Variant Allele Frequency (VAF)") +
-    xlab("Sample Source") +
-    theme(
-        plot.title = element_text(hjust = 0.5, size = 22),
-        legend.position = "none",
-        axis.text = element_text(size = 14),
-        axis.title.x = element_text(size = 22),
-        axis.title.y = element_text(size = 22),
-        strip.text = element_text(size = 16),
-        axis.text.x = element_text(size = 16),
-        axis.text.y = element_text(size = 16)
-    ))
+    theme(legend.position = "none")
+)
 ```
 
 ```{r}
 ggsave(
-    plot = RMvsNonRM_paired_wilcox_preprint,
+    plot = source_vaf_comp,
     filename = here("figures", "fig4_VAF-RM-v-nonRM.pdf")
 )
 ```
