@@ -18,6 +18,8 @@ library(patchwork)
 library(viridis)
 library(ggpubr)
 library(ggupset)
+library(glmmTMB)
+library(broom)
 ```
 
 ## Load and Tidy Input Data
@@ -173,42 +175,162 @@ ggsave(
 
 ### Figure 4
 
+Preparing data and statistical tests
+
 ```{r}
-(source_vaf_comp <- benchmark_source_comp_df %>%
+## Preparing data
+vaf_dat <- benchmark_source_comp_df %>%
     filter(
         str_detect(platform, "element|pacbio"),
-        !str_detect(platform, "long"),
-        !str_detect(platform, "sequel")
+        !str_detect(platform, "long|sequel")
     ) %>%
-    mutate(tech = str_remove(platform, "_.*")) %>%
-    group_by(dna_source, tech, CHROM, POS, REF, ALT) %>%
-    summarise(VAF = sum(alt_count) / sum(depth)) %>%
     mutate(
-        idx = paste0(CHROM, POS, REF, ALT),
+        platform = str_remove(platform, "_.*"),
         dna_source = factor(dna_source, levels = c("nonRM", "RM")),
-        tech = factor(tech, levels = c("element", "pacbio"), labels = c("Element", "PacBio Revio"))
+        variant_id = paste0(CHROM, ":", POS, ":", REF, ":", ALT)
     ) %>%
-    ggpaired(
-        x = "dna_source", fill = "tech",
-        y = "VAF",
-        id = "idx",
-        facet.by = "tech",
-        line.color = "gray",
-        line.size = 0.4,
-        palette = c("#7CAE00", "#C77CFF"),
+    group_by(dna_source, platform, variant_id) %>%
+    summarise(
+        vaf = sum(alt_count) / sum(depth),
+        alt_count = sum(alt_count),
+        ref_count = sum(ref_count),
+        depth = sum(depth)
+    )
+
+# ---- Global GLMM Binomial Model ----
+glmm_global <- glmmTMB(
+    cbind(alt_count, ref_count) ~ dna_source + platform + (1 | variant_id),
+    family = binomial,
+    data = vaf_dat
+)
+
+# Overdispersion check
+od_result <- performance::check_overdispersion(glmm_global)
+
+# Reduced model (no dna_source)
+glmm_null <- update(glmm_global, . ~ . - dna_source)
+lrt_result <- anova(glmm_null, glmm_global)
+
+# Extract LRT p-value
+lrt_pval <- lrt_result$`Pr(>Chisq)`[2]
+
+# ---- Per-Variant Binomial GLMs ----
+variant_tests <- vaf_dat %>%
+    group_by(variant_id) %>%
+    filter(n_distinct(dna_source) == 2) %>%
+    nest() %>%
+    mutate(
+        model = map(data, ~ glm(cbind(alt_count, ref_count) ~ dna_source + platform,
+            family = binomial, data = .x
+        )),
+        tidy = map(model, ~ tidy(., conf.int = TRUE))
+    ) %>%
+    unnest(tidy) %>%
+    filter(term == "dna_sourceRM") %>%
+    mutate(p_adj = p.adjust(p.value, method = "BH"))
+
+# Determine direction
+variant_tests <- variant_tests %>%
+    mutate(direction = case_when(
+        p_adj < 0.05 & estimate > 0 ~ "Higher in RM",
+        p_adj < 0.05 & estimate < 0 ~ "Higher in nonRM",
+        TRUE ~ "Not significant"
+    ))
+
+# Count and get significant variants
+total_sig <- sum(variant_tests$p_adj < 0.05)
+higher_rm <- sum(variant_tests$direction == "Higher in RM")
+higher_nonrm <- sum(variant_tests$direction == "Higher in nonRM")
+
+sig_variants <- variant_tests %>%
+    filter(p_adj < 0.05) %>%
+    arrange(estimate) %>%
+    mutate(row_id = row_number())
+```
+
+Out of `r nrow(variant_tests)` variants tested, `r total_sig` exhibited statistically significant VAF differences (FDR < 0.05) between RM and nonRM samples.
+Of these, `r higher_rm` variants had higher VAFs in RM, while {higher_nonrm} had higher VAFs in nonRM.
+The global GLMM model detected a significant overall difference in VAF profiles between RM and nonRM (LRT p = `r signif(lrt_pval, 3)`).
+Overdispersion was not detected (dispersion ratio = `r signif(od_result$dispersion_ratio, 3)`, p = `r signif(od_result$p_value, 3)`).
+
+#### Forest Plot - Supplemental?
+```{r}
+(forest_plot <- ggplot(
+    sig_variants,
+    aes(x = estimate, y = fct_reorder(variant_id, estimate))
+) +
+    geom_errorbarh(
+        aes(
+            xmin = conf.low,
+            xmax = conf.high,
+            color = direction
+        ),
+        height = 0.3
     ) +
-    stat_compare_means(paired = TRUE) +
-    ylim(0, 0.4) +
-    theme(legend.position = "none")
+    geom_point(color = "black") +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    labs(
+        x = "Log-odds (RM vs nonRM)", y = "Variant ID",
+        title = "Significantly Different VAFs (FDR < 0.05)"
+    ) +
+    scale_color_manual(values = c(
+        "Higher in RM" = "red",
+        "Higher in nonRM" = "blue"
+    )) +
+    theme_minimal()
 )
 ```
 
+Paried Plot
 ```{r}
-ggsave(
-    plot = source_vaf_comp,
-    filename = here("figures", "fig4_VAF-RM-v-nonRM.pdf")
+# Merge direction info into your VAF comparison data
+source_vaf_comp <- benchmark_source_comp_df %>%
+    filter(
+        str_detect(platform, "element|pacbio"),
+        !str_detect(platform, "long|sequel")
+    ) %>%
+    mutate(tech = str_remove(platform, "_.*")) %>%
+    group_by(dna_source, tech, CHROM, POS, REF, ALT) %>%
+    summarise(VAF = sum(alt_count) / sum(depth), .groups = "drop") %>%
+    mutate(
+        idx = paste0(CHROM, ":", POS, ":", REF, ":", ALT),
+        dna_source = factor(dna_source, levels = c("nonRM", "RM")),
+        tech = factor(tech,
+            levels = c("element", "pacbio"),
+            labels = c("Element", "PacBio Revio")
+        )
+    ) %>%
+    left_join(
+        variant_tests %>%
+            select(variant_id, direction),
+        by = c("idx" = "variant_id")
+    ) %>%
+    mutate(
+        line_color = case_when(
+            direction == "Higher in RM" ~ "red",
+            direction == "Higher in nonRM" ~ "blue",
+            TRUE ~ "lightgrey"
+        )
+    )
+
+# Generate ggpaired plot with custom line coloring
+(ggpaired_plot <- ggpaired(
+    source_vaf_comp,
+    x = "dna_source", y = "VAF", id = "idx",
+    facet.by = "tech",
+    line.color = "direction", # use mapped line color
+    line.size = 0.4
+) +
+    ylim(0, 0.4) +
+    theme_minimal() +
+    theme(legend.position = "none") +
+    labs(
+        title = "VAF Comparison by DNA Source and Platform",
+        subtitle = "Line color indicates VAF direction for significant variants (FDR < 0.05)"
+    )
 )
 ```
+
 
 ### Figure S1
 
