@@ -133,23 +133,7 @@ echo 'export PATH="/opt/homebrew/opt/rustup/bin:$PATH"' >> /Users/nolson/.zshrc
 Created variant tsv using `cut -f1-4 data/igv_curated_variants_RM.tsv > curated_variants.tsv`
 Modify rust to include usage, ref_count, alt_count, depth
 
-Different bam readcount pipeline input tsvs
-Mar  8  2023 ortho_bam.tsv
-CO	HG002	element	/projects/camille_mosaic/element/HG002_PCR-free_2x150_100X.bam	GRCh38
-RM	HG002	bgiseq	/projects/data/bgiseq-high-coverage/hg38_result/upload/alignment/HG002/HG002.bam	GRCh38
-CO	HG002	pacbio_revio_hifiA	/projects/data/pacbio_revio-hifi_ajtrio/HG002.m84005_220827_014912_s1.GRCh38.bam	GRCh38
-CO	HG002	pacbio_revio_hifiB	/projects/data/pacbio_revio-hifi_ajtrio/HG002.m84005_220919_232112_s2.GRCh38.bam	GRCh38
-CO	HG002	pacbio_revio_hifiC	/projects/data/pacbio_revio-hifi_ajtrio/HG002.m84011_220902_175841_s1.GRCh38.bam	GRCh38
-RM	HG002	pacbio_revio_hifiD	/projects/camille_mosaic/hprc_pacbio_revio-hifi/sorted_aligned_GRCh38_m84039_230117_233243_s1.hifi_reads.default.bam	GRCh38
-RM	HG002	pacbio_sequel_ccsA_10kb	/projects/camille_mosaic/pacbio_sequel_ccs/HG002.10kb.Sequel.pbmm2.GRCh38.whatshap.haplotag.RTG.10x.trio.bam	GRCh38
-CO	HG002	pacbio_sequel_ccsB_11kb	/projects/camille_mosaic/pacbio_sequel_ccs/HG002_GRCh38.haplotag.10x.bam	GRCh38
-CO	HG002	pacbio_sequel_ccsC_15kb	/projects/camille_mosaic/pacbio_sequel_ccs/HG002.15kb.Sequel.pbmm2.GRCh38.whatshap.haplotag.RTG.10x.trio.bam	GRCh38
-RM	HG002	pacbio_sequel_ccsD_15kb_20kb	/projects/camille_mosaic/pacbio_sequel_ccs/HG002.SequelII.merged_15kb_20kb.pbmm2.GRCh38.haplotag.10x.bam	GRCh38
-
-Mar  8  2023 ortho_bam2.tsv duplicate of above
-giab_id	lib	path	ref
-RM	HG002	pacbio_revio_hifiD	/projects/camille_mosaic/hprc_pacbio_revio-hifi/sorted_aligned_GRCh38_m84039_230117_233243_s1.hifi_reads.default.bam	GRCh38
-
+Different bam readcount pipeline run input tsvs
 Dec 20  2023 ortho_bam_NIST_RM_libs.tsv
 giab_id	lib	path	ref
 RM	HG002	illumina	/projects/camille_mosaic/strelka2_rerun-GRCh38/HG002.GRCh38.300x.bam	GRCh38
@@ -172,4 +156,4 @@ CO	HG002	pacbio_revio_hifiD	/projects/camille_mosaic/hprc_pacbio_revio-hifi/sort
 RM	HG002	pacbio_sequel_ccsA_10kb	/projects/camille_mosaic/pacbio_sequel_ccs/HG002.10kb.Sequel.pbmm2.GRCh38.whatshap.haplotag.RTG.10x.trio.bam	GRCh38
 CO	HG002	pacbio_sequel_ccsB_11kb	/projects/camille_mosaic/pacbio_sequel_ccs/HG002_GRCh38.haplotag.10x.bam	GRCh38
 CO	HG002	pacbio_sequel_ccsC_15kb	/projects/camille_mosaic/pacbio_sequel_ccs/HG002.15kb.Sequel.pbmm2.GRCh38.whatshap.haplotag.RTG.10x.trio.bam	GRCh38
-RM	HG002	pacbio_sequel_ccsD_15kb_20kb	/projects/camille_mosaic/pacbio_sequel_ccs/HG002.SequelII.merged_15kb_20kb.pbmm2.GRCh38.haplotag.10x.bam	GRCh38
+CO	HG002	pacbio_sequel_ccsD_15kb_20kb	/projects/camille_mosaic/pacbio_sequel_ccs/HG002.SequelII.merged_15kb_20kb.pbmm2.GRCh38.haplotag.10x.bam	GRCh38
