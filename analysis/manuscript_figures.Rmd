@@ -1,5 +1,5 @@
 ---
-title: "Mosaic_Benchmark_Figures"
+title: "mosaic benchmark manuscript figures"
 author: "Ade, Camille, and Nate"
 date: "`r Sys.Date()`"
 output: 
@@ -22,14 +22,15 @@ library(glmmTMB)
 library(broom)
 ```
 
-## Load and Tidy Input Data
+# Load and Tidy Input Data
 
-### Variant VAFs DF for Figure 2
+## Variant VAFs DF for Figure 2
 ```{r}
 ## Loading manually curated variants data
 chrom_order <- paste0("chr", c(1:22, "X", "Y"))
 curated_variants <- read_tsv(
-    here("data", "igv_curated_variants_RM.tsv")
+    here("data", "igv_curated_variants_RM.tsv"),
+    show_col_types = FALSE
 ) %>%
     dplyr::arrange(AF) %>%
     mutate(
@@ -58,124 +59,38 @@ curated_variants_longer <- pivot_longer(curated_variants,
     mutate(Method = gsub("Element", "Element 136X", Method)) %>%
     mutate(Method = gsub("Pacbio", "Pacbio 108X", Method))
 
-common_variants <- read_tsv(here("data", "RM_VAF_fig_70cand_updated.tsv")) %>%
+common_variants <- read_tsv(
+    here("data", "RM_VAF_fig_70cand_updated.tsv"),
+    show_col_types = FALSE
+) %>%
     arrange(AF) %>%
     mutate(index = row_number())
 
-curated_variants_longer_pacbio_sep <- read_tsv(here("data", "curated_variants_longer_pacbio_sep.tsv"))
+curated_variants_longer_pacbio_sep <- read_tsv(
+    here("data", "curated_variants_longer_pacbio_sep.tsv"),
+    show_col_types = FALSE
+)
 
 benchmark_source_comp_df <- read_tsv(
-    here("data", "ortho_support", "combined_bamread_count.tsv")
+    here("data", "ortho_support", "combined_bamread_count.tsv"),
+    show_col_types = FALSE
 ) %>%
     right_join(benchmark_vars)
 ```
 
 
-### In Silico LOD Data
+## In Silico LOD Data
 ```{r}
 insilico_lod_df <- list.files(here("data/insilico_lod"), full.names = TRUE) %>%
     set_names(., str_extract(., "(?<=af)[:digit:]*(?=_result)")) %>%
-    map_dfr(read_csv, .id = "AF") %>%
+    map_dfr(read_csv, show_col_types = FALSE, .id = "AF") %>%
     mutate(AF = as.numeric(AF))
 ```
 
-## Figures
 
-### Figure 2
-```{r}
-ortho_vafs_df <- curated_variants_longer %>%
-    mutate(Variant_Category = case_when(
-        RM_KEEP_REMOVE == "KEEP" ~ "**Included** in Benchmark",
-        RM_KEEP_REMOVE != "KEEP" ~ "**Excluded** from Benchmark",
-        TRUE ~ "ERROR"
-    ))
+## RM v. nonRM VAF Comparison
 
-(curated_ortho_vafs_fig <- ggplot(
-    ortho_vafs_df,
-    aes(x = index, y = VAF)
-) +
-    annotate("rect",
-        xmin = -Inf, xmax = Inf,
-        ymin = 0.05, ymax = 0.3,
-        alpha = 0.4, fill = "gray"
-    ) +
-    geom_line(aes(group = index), linewidth = 0.5) +
-    geom_point(aes(fill = Method), shape = 21, color = "grey40") +
-    scale_color_viridis() +
-    guides(fill = guide_legend(
-        nrow = 1,
-        position = "bottom",
-        direction = "horizontal",
-        title = "Sequencing Method"
-    )) +
-    labs(x = "Strelka2 VAF", y = "VAF") +
-    theme_bw() +
-    theme(
-        strip.text = ggtext::element_markdown(),
-        axis.text.x = element_blank(),
-        axis.ticks.x = element_blank()
-    ) +
-    facet_wrap(
-        ~Variant_Category,
-        ncol = 1
-    )
-)
-```
-
-```{r}
-ggsave(
-    filename = here("figures", "fig2_curated-variants.pdf"),
-    plot = curated_ortho_vafs_fig,
-    height = 6, width = 8
-)
-```
-
-### Figure 3
-
-```{r currated_VAF, message = FALSE}
-(curated_variants_hist <- curated_variants %>%
-    mutate(combined_VAF = x_ci_no_Dup / n_ci_no_Dup) %>%
-    ggplot(aes(
-        x = combined_VAF
-    )) +
-    geom_vline(
-        xintercept = c(0.05, 0.3),
-        linetype = "dashed", color = "black"
-    ) +
-    geom_histogram(
-        color = "black",
-        position = "identity", bins = 40, na.rm = TRUE
-    ) +
-    labs(
-        x = "Variant Allele Frequency (VAF)",
-        y = "# of Variants"
-    ) +
-    theme_bw() +
-    theme(
-        strip.text = ggtext::element_markdown()
-    ) +
-    facet_wrap(~RM_CURATION,
-        ncol = 1,
-        labeller = labeller(RM_CURATION = c(
-            "MOSAIC" = "**Included** in Benchmark",
-            "NOT MOSAIC" = "**Excluded** from Benchmark"
-        ))
-    )
-)
-```
-
-
-```{r}
-ggsave(
-    plot = curated_variants_hist,
-    filename = here("figures", "fig3_curated-variants-VAF.pdf"),
-    height = 6, width = 4
-)
-```
-
-### Figure 4
-
-Preparing data and statistical tests
+## Loading Data
 
 ```{r}
 ## Preparing data
@@ -196,7 +111,31 @@ vaf_dat <- benchmark_source_comp_df %>%
         ref_count = sum(ref_count),
         depth = sum(depth)
     )
+```
 
+### Statistical Analysis
+
+#### Methods
+
+##### Global Comparison of VAF Profiles
+
+We tested whether the variant allele frequency (VAF) profiles differed globally between DNA sources (RM vs nonRM) using a generalized linear mixed-effects model (GLMM). We modeled the number of alternate reads ($\text{alt_count}$) out of total reads ($\text{alt_count}$ + $\text{ref_count}$) per variant per sample using a binomial distribution.
+
+The model included DNA source ($\text{dna_source}$) and sequencing platform ($\text{platform}$) as fixed effects, and variant ID ($\text{variant_id}$) as a random intercept to account for baseline allele frequency heterogeneity. The model was fit using the glmmTMB package in R. A likelihood ratio test (LRT) was used to compare the full model with a reduced model excluding the dna_source term to test whether VAF profiles differed between RM and nonRM sources.
+
+##### Per-Variant Tests for Directional VAF Differences
+
+To identify individual variants with significant VAF differences between RM and nonRM samples, we fit a separate binomial generalized linear model (GLM) for each variant:
+
+
+$$
+\text{alt_count} \sim \text{Binomial}(n, p), \quad 
+\log\left(\frac{p}{1 - p}\right) = \beta_0 + \beta_1 \cdot \text{dna_source} + \beta_2 \cdot \text{platform}
+$$
+
+From each model, we extracted the log-odds estimate for dna_source = RM, its 95% confidence interval, and the associated p-value. P-values were adjusted across all variants using the Benjamini–Hochberg procedure to control the false discovery rate (FDR).
+
+```{r}
 # ---- Global GLMM Binomial Model ----
 glmm_global <- glmmTMB(
     cbind(alt_count, ref_count) ~ dna_source + platform + (1 | variant_id),
@@ -248,40 +187,122 @@ sig_variants <- variant_tests %>%
     mutate(row_id = row_number())
 ```
 
-Out of `r nrow(variant_tests)` variants tested, `r total_sig` exhibited statistically significant VAF differences (FDR < 0.05) between RM and nonRM samples.
-Of these, `r higher_rm` variants had higher VAFs in RM, while {higher_nonrm} had higher VAFs in nonRM.
-The global GLMM model detected a significant overall difference in VAF profiles between RM and nonRM (LRT p = `r signif(lrt_pval, 3)`).
-Overdispersion was not detected (dispersion ratio = `r signif(od_result$dispersion_ratio, 3)`, p = `r signif(od_result$p_value, 3)`).
+# Figures
 
-#### Forest Plot - Supplemental?
+## Figure 2
 ```{r}
-(forest_plot <- ggplot(
-    sig_variants,
-    aes(x = estimate, y = fct_reorder(variant_id, estimate))
+ortho_vafs_df <- curated_variants_longer %>%
+    mutate(Variant_Category = case_when(
+        RM_KEEP_REMOVE == "KEEP" ~ "**Included** in Benchmark",
+        RM_KEEP_REMOVE != "KEEP" ~ "**Excluded** from Benchmark",
+        TRUE ~ "ERROR"
+    ))
+
+(curated_ortho_vafs_fig <- ggplot(
+    ortho_vafs_df,
+    aes(x = index, y = VAF)
 ) +
-    geom_errorbarh(
-        aes(
-            xmin = conf.low,
-            xmax = conf.high,
-            color = direction
-        ),
-        height = 0.3
+    annotate("rect",
+        xmin = -Inf, xmax = Inf,
+        ymin = 0.05, ymax = 0.3,
+        alpha = 0.4, fill = "gray"
     ) +
-    geom_point(color = "black") +
-    geom_vline(xintercept = 0, linetype = "dashed") +
-    labs(
-        x = "Log-odds (RM vs nonRM)", y = "Variant ID",
-        title = "Significantly Different VAFs (FDR < 0.05)"
-    ) +
-    scale_color_manual(values = c(
-        "Higher in RM" = "red",
-        "Higher in nonRM" = "blue"
+    geom_line(aes(group = index), linewidth = 0.5) +
+    geom_point(aes(fill = Method), shape = 21, color = "grey40") +
+    scale_color_viridis() +
+    guides(fill = guide_legend(
+        nrow = 1,
+        position = "bottom",
+        direction = "horizontal",
+        title = "Sequencing Method"
     )) +
-    theme_minimal()
+    labs(x = "Strelka2 VAF", y = "VAF") +
+    theme_bw() +
+    theme(
+        strip.text = ggtext::element_markdown(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()
+    ) +
+    facet_wrap(
+        ~Variant_Category,
+        ncol = 1
+    )
 )
 ```
 
-Paried Plot
+```{r}
+ggsave(
+    filename = here("figures", "fig2_curated-variants.pdf"),
+    plot = curated_ortho_vafs_fig,
+    height = 6, width = 8
+)
+
+ggsave(
+    filename = here("figures", "fig2_curated-variants.png"),
+    plot = curated_ortho_vafs_fig,
+    height = 6, width = 8
+)
+```
+
+## Figure 3
+
+```{r currated_VAF, message = FALSE}
+(curated_variants_hist <- curated_variants %>%
+    mutate(combined_VAF = x_ci_no_Dup / n_ci_no_Dup) %>%
+    ggplot(aes(
+        x = combined_VAF
+    )) +
+    geom_vline(
+        xintercept = c(0.05, 0.3),
+        linetype = "dashed", color = "black"
+    ) +
+    geom_histogram(
+        color = "black",
+        position = "identity", bins = 40, na.rm = TRUE
+    ) +
+    labs(
+        x = "Variant Allele Frequency (VAF)",
+        y = "# of Variants"
+    ) +
+    theme_bw() +
+    theme(
+        strip.text = ggtext::element_markdown()
+    ) +
+    facet_wrap(~RM_CURATION,
+        ncol = 1,
+        labeller = labeller(RM_CURATION = c(
+            "MOSAIC" = "**Included** in Benchmark",
+            "NOT MOSAIC" = "**Excluded** from Benchmark"
+        ))
+    )
+)
+```
+
+
+```{r}
+ggsave(
+    plot = curated_variants_hist,
+    filename = here("figures", "fig3_curated-variants-VAF.pdf"),
+    height = 6, width = 4
+)
+
+ggsave(
+    plot = curated_variants_hist,
+    filename = here("figures", "fig3_curated-variants-VAF.png"),
+    height = 6, width = 4
+)
+```
+
+## Figure 4
+
+
+
+Out of `r nrow(variant_tests)` variants tested, `r total_sig` exhibited statistically significant VAF differences (FDR < 0.05) between RM and nonRM samples.
+The global GLMM model detected a significant overall difference in VAF profiles between RM and nonRM (LRT p = `r signif(lrt_pval, 3)`).
+Overdispersion was not detected (dispersion ratio = `r signif(od_result$dispersion_ratio, 3)`, p = `r signif(od_result$p_value, 3)`).
+
+
+### Paired Plot
 ```{r}
 # Merge direction info into your VAF comparison data
 source_vaf_comp <- benchmark_source_comp_df %>%
@@ -314,7 +335,7 @@ source_vaf_comp <- benchmark_source_comp_df %>%
     )
 
 # Generate ggpaired plot with custom line coloring
-(ggpaired_plot <- ggpaired(
+(source_vaf_plot <- ggpaired(
     source_vaf_comp,
     x = "dna_source", y = "VAF", id = "idx",
     facet.by = "tech",
@@ -331,8 +352,50 @@ source_vaf_comp <- benchmark_source_comp_df %>%
 )
 ```
 
+```{r}
+ggsave(
+    plot = source_vaf_plot,
+    filename = here("figures", "fig4_sample-source-vaf.pdf")
+)
 
-### Figure S1
+ggsave(
+    plot = source_vaf_plot,
+    filename = here("figures", "fig4_sample-source-vaf.png")
+)
+```
+
+### Forest Plot
+
+Extra plot do not plan to include in manuscript.
+
+```{r}
+(forest_plot <- ggplot(
+    sig_variants,
+    aes(x = estimate, y = fct_reorder(variant_id, estimate))
+) +
+    geom_errorbarh(
+        aes(
+            xmin = conf.low,
+            xmax = conf.high,
+            color = direction
+        ),
+        height = 0.3
+    ) +
+    geom_point(color = "black", alpha = 0.25) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    labs(
+        x = "Log-odds (RM vs nonRM)", y = "Variant ID",
+        title = "Significantly Different VAFs (FDR < 0.05)"
+    ) +
+    scale_color_manual(values = c(
+        "Higher in RM" = "lightgrey",
+        "Higher in nonRM" = "blue"
+    )) +
+    theme_minimal()
+)
+```
+
+## Figure S1
 
 ```{r}
 (lod_fig <- insilico_lod_df %>%
@@ -352,9 +415,14 @@ ggsave(
     plot = lod_fig,
     filename = here("figures", "figS1_insilico-lod.pdf")
 )
+
+ggsave(
+    plot = lod_fig,
+    filename = here("figures", "figS1_insilico-lod.png")
+)
 ```
 
-### Figure S4
+## Figure S4
 ```{r}
 (curated_vafs_hist <- ggplot(curated_variants_longer, aes(x = VAF, fill = Method)) +
     geom_histogram(color = "black", alpha = 0.7) +
@@ -375,9 +443,15 @@ ggsave(
     filename = here("figures", "figS4_curated-VAFs.pdf"),
     height = 8, width = 6
 )
+
+ggsave(
+    plot = curated_vafs_hist,
+    filename = here("figures", "figS4_curated-VAFs.png"),
+    height = 8, width = 6
+)
 ```
 
-### Figure S5
+## Figure S5
 ```{r}
 (bench_vafs_hist <- curated_variants_longer %>%
     filter(RM_KEEP_REMOVE == "KEEP") %>%
@@ -398,6 +472,12 @@ ggsave(
 ggsave(
     plot = bench_vafs_hist,
     filename = here("figures", "figS5_benchmark-VAFs.pdf"),
+    height = 8, width = 6
+)
+
+ggsave(
+    plot = bench_vafs_hist,
+    filename = here("figures", "figS5_benchmark-VAFs.png"),
     height = 8, width = 6
 )
 ```
