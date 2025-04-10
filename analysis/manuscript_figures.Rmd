@@ -248,7 +248,14 @@ ggsave(
 
 ```{r currated_VAF, message = FALSE}
 (curated_variants_hist <- curated_variants %>%
-    mutate(combined_VAF = x_ci_no_Dup / n_ci_no_Dup) %>%
+    mutate(
+        combined_VAF = x_ci_no_Dup / n_ci_no_Dup,
+        Variant_Category = case_when(
+            RM_KEEP_REMOVE == "KEEP" ~ "**Included** in Benchmark",
+            RM_KEEP_REMOVE != "KEEP" ~ "**Excluded** from Benchmark",
+            TRUE ~ "ERROR"
+        )
+    ) %>%
     ggplot(aes(
         x = combined_VAF
     )) +
@@ -268,13 +275,7 @@ ggsave(
     theme(
         strip.text = ggtext::element_markdown()
     ) +
-    facet_wrap(~RM_CURATION,
-        ncol = 1,
-        labeller = labeller(RM_CURATION = c(
-            "MOSAIC" = "**Included** in Benchmark",
-            "NOT MOSAIC" = "**Excluded** from Benchmark"
-        ))
-    )
+    facet_wrap(~Variant_Category, ncol = 1)
 )
 ```
 
@@ -283,13 +284,13 @@ ggsave(
 ggsave(
     plot = curated_variants_hist,
     filename = here("figures", "fig3_curated-variants-VAF.pdf"),
-    height = 6, width = 4
+    height = 4, width = 4
 )
 
 ggsave(
     plot = curated_variants_hist,
     filename = here("figures", "fig3_curated-variants-VAF.png"),
-    height = 6, width = 4
+    height = 4, width = 4
 )
 ```
 
@@ -301,9 +302,29 @@ Out of `r nrow(variant_tests)` variants tested, `r total_sig` exhibited statisti
 The global GLMM model detected a significant overall difference in VAF profiles between RM and nonRM (LRT p = `r signif(lrt_pval, 3)`).
 Overdispersion was not detected (dispersion ratio = `r signif(od_result$dispersion_ratio, 3)`, p = `r signif(od_result$p_value, 3)`).
 
+Median benchmark variant coverage for Element short insert and PacBio Revio data.
+
+
+```{r}
+benchmark_source_comp_df %>%
+    filter(
+        str_detect(platform, "element|pacbio"),
+        !str_detect(platform, "long|sequel")
+    ) %>%
+    mutate(tech = str_remove(platform, "_.*")) %>%
+    group_by(dna_source, tech, CHROM, POS, REF, ALT) %>%
+    reframe(depth = sum(depth)) %>%
+    group_by(dna_source, tech) %>%
+    reframe(coverage = median(depth))
+```
 
 ### Paired Plot
-```{r}
+```{r message = FALSE, warning = FALSE}
+## custom ggpaired for configurable line.alpha and shape aes
+source(here("scripts", "custom_ggpaired.R"))
+```
+
+```{r message = FALSE}
 # Merge direction info into your VAF comparison data
 source_vaf_comp <- benchmark_source_comp_df %>%
     filter(
@@ -323,14 +344,24 @@ source_vaf_comp <- benchmark_source_comp_df %>%
     ) %>%
     left_join(
         variant_tests %>%
-            select(variant_id, direction),
+            select(variant_id, direction, p_adj),
         by = c("idx" = "variant_id")
     ) %>%
     mutate(
         line_color = case_when(
+            p_adj > 0.05 ~ "grey20",
             direction == "Higher in RM" ~ "red",
-            direction == "Higher in nonRM" ~ "blue",
-            TRUE ~ "lightgrey"
+            direction == "Higher in nonRM" ~ "darkblue",
+            TRUE ~ "green"
+        ),
+        line_alpha = case_when(
+            p_adj > 0.05 ~ 0.75,
+            direction == "Higher in RM" ~ 1,
+            direction == "Higher in nonRM" ~ 1,
+            TRUE ~ 1
+        ),
+        dna_source = if_else(dna_source == "nonRM",
+            "non-RM", dna_source
         )
     )
 
@@ -339,27 +370,33 @@ source_vaf_comp <- benchmark_source_comp_df %>%
     source_vaf_comp,
     x = "dna_source", y = "VAF", id = "idx",
     facet.by = "tech",
-    line.color = "direction", # use mapped line color
-    line.size = 0.4
+    point.shape = 21,
+    point.fill = "line_color",
+    point.alpha = "line_alpha",
+    line.color = "line_color",
+    line.alpha = "line_alpha" # use mapped line color
 ) +
     ylim(0, 0.4) +
-    theme_minimal() +
+    scale_color_identity() +
+    scale_fill_identity() +
+    theme_bw() +
     theme(legend.position = "none") +
     labs(
-        title = "VAF Comparison by DNA Source and Platform",
-        subtitle = "Line color indicates VAF direction for significant variants (FDR < 0.05)"
+        x = "Sample Source",
+        y = "VAF"
     )
 )
 ```
 
+
 ```{r}
 ggsave(
-    plot = source_vaf_plot,
+    plot = source_vaf_plot, height = 3, width = 6,
     filename = here("figures", "fig4_sample-source-vaf.pdf")
 )
 
 ggsave(
-    plot = source_vaf_plot,
+    plot = source_vaf_plot, height = 3, width = 6,
     filename = here("figures", "fig4_sample-source-vaf.png")
 )
 ```
