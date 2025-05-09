@@ -1,0 +1,677 @@
+---
+title: "<span style='font-size: 18pt'>Decision_Tree_Variant_Filtering</span>"
+author: "Camille Daniels"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 5
+    toc_float:
+      collapsed: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+#### PURPOSE
+
+Filter potential mosaic variant database to get list of variants for manual curation (green squares) and generate final mosaic benchmark vcf and bed files.
+
+This process consists of 4 phases:
+
+1. Compare strelka2 HG002 potential mosaic variants to identify denovo variants
+
+2. Filtering potential mosaic database using decision tree heuristics
+
+3. Get variants for manual curation
+
+4. Benchmark bed exclusion
+
+#### DECISION TREE
+
+![mosaic decision tree](https://github.com/usnistgov/giab-HG002-mosaic-benchmark/blob/main/figures/Suppl_Figure_3_mosaic_decision_tree.pdf)
+
+#### RESOURCES
+
+Mosaic benchmark generation requires the following resources:
+
+- strelka2 vcfeval true positives 
+
+- GIAB v4.2.1 HG002/HG003/HG004 trio benchmark harmonized denovo VCF
+
+- HG002 GRCh38 potential mosaic database - ![tsv](https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/mosaic_v1.10/GRCh38/SNV/SupplementaryFiles/)
+
+- GIABv4.2.1 HG002 GRCh38 AllTandemRepeatsandHomopolymers_slop5.bed
+
+- human.b38.genome
+
+- bedtools
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(here)
+library(data.table)
+library(tidyverse)
+library(vcfR)
+library(patchwork)
+#library(bedtoolsr)
+library(networkD3)
+library(htmlwidgets)
+library(htmltools)
+library(webshot2)
+library(grid)
+library(gridExtra)
+library(flextable)
+library(gt)
+library(gtExtras)
+library(huxtable)
+library(png)
+library(scales)
+library(chromote)
+library(ggupset)
+library(UpSetR)
+library(ComplexUpset)
+```
+
+```{r here, include=FALSE}
+#<-- Clean up Rmd using here package - to get rid of absolute paths
+here::i_am("mosaic_decision_tree_NIST_RM.Rmd")
+```
+
+#### I. Comparison of strelka2 vcfeval TPs vs trio denovo benchmark and annotation 
+
+```{r get_mosaic_giabv4.2.1_tp_vcf, results = 'hide'}
+
+# Get vcfeval TP VCF
+
+tp_vcf <- read.vcfR(here("~/git_repos/mosaic-benchmarking/data/strelka2_wgs_parents-vs-child/squash_ploidy_normals_excluded_vcfeval_comparison/tp.vcf.gz"))
+tp_vcf_df <- data.frame(CHROM = tp_vcf@fix[, "CHROM"], POS = tp_vcf@fix[, "POS"])
+
+```
+
+```{r mosaic tp vcf count}
+print(paste0("HG002 mosaic TRUE positives - variants that match giab v4.2.1 benchmark: ", nrow(tp_vcf)))
+```
+
+##### Get trio denovo vcf
+
+```{r get_trio_denovo_vcf, results = 'hide'}
+
+#Read trio denovo VCF 
+
+denovo_vcf <- read.vcfR(here("HG002_3_4_GRCh38_1_22_v4.2.1_draft_benchmark_trio_harmonize_w_merged_vcf_output_trioinconsistent_denovo.vcf"))
+denovo_vcf_df <- data.frame(CHROM = denovo_vcf@fix[, "CHROM"], POS = denovo_vcf@fix[, "POS"])
+
+```
+
+```{r trio denovo count}
+
+print(paste0("GIABv4.2.1 trio denovo benchmark variants: ", nrow(denovo_vcf)))
+
+```
+
+##### Compare vcfeval tp.vcf to GIAB v4.2.1 trio denovo benchmark
+
+```{r get_mosaic_giabv4.2.1_tp_vcf_and_trio_denovo_vcf}
+
+if (!dir.exists("denovo_compare")) {
+  dir.create("denovo_compare")
+}
+
+# Merge the draft mosaic benchmark TP VCF and denovo VCF data based on CHROM and POS 
+
+denovo_mosaic_tp_hg2_hits<- merge(tp_vcf_df, denovo_vcf_df, by = c("CHROM", "POS"))
+
+fwrite(denovo_mosaic_tp_hg2_hits, file = "denovo_compare/denovo_hits_mosaic_giab4.2.1_tp.tsv", sep = "\t")
+write_delim(denovo_mosaic_tp_hg2_hits[, c("CHROM", "POS")], file = "denovo_compare/denovo_list_hits_mosaic_giab4.2.1_tp.tsv", delim = "\t", col_names = TRUE)
+
+#Use list to order output files below
+chrom_order <- c("chr1", "chr2", "chr3", "chr4", "chr5", "chr6", "chr7", "chr8", "chr9", "chr10", "chr11", "chr12", 
+                "chr13", "chr14", "chr15","chr16","chr17", "chr18", "chr19", "chr20", "chr21", "chr22", "chr23", "chr24")
+
+#Get denovo hits with full denovo database annotation
+denovo_mosaic_tp_hits_list <- fread("denovo_compare/denovo_list_hits_mosaic_giab4.2.1_tp.tsv")
+denovo_db_df <- fread("~/Documents/mosaic_variants_project/draft_benchmark/denovo_db/denovo_variant_database_indel_fixed_genomic_context.tsv") #df needed for downstream analysis
+
+merge_denovo_db_mosaic_tp_hits <- inner_join(denovo_mosaic_tp_hits_list, denovo_db_df, by = c("CHROM", "POS"))
+merge_denovo_db_mosaic_tp_hits_sorted <- merge_denovo_db_mosaic_tp_hits [order(factor(merge_denovo_db_mosaic_tp_hits$CHROM, levels = chrom_order)),]
+
+fwrite(merge_denovo_db_mosaic_tp_hits_sorted, "denovo_compare/denovo_db_hits_mosaic_giabv4.2.1_tp.tsv", sep = "\t")
+
+#Get non-matches from denovo comparison
+denovo_mosaic_tp_hg2_no_hits <- anti_join(tp_vcf_df, denovo_vcf_df, by = c("CHROM", "POS"))
+fwrite(denovo_mosaic_tp_hg2_no_hits, file = "denovo_compare/denovo_no_hits_mosaic_giabv4.2.1_tp.tsv", sep = "\t")
+write_delim(denovo_mosaic_tp_hg2_no_hits[, c("CHROM", "POS")], file = "denovo_compare/denovo_list_no_hits_mosaic_giab4.2.1_tp.tsv", delim = "\t", col_names = TRUE)
+
+# Print counts for matching and non-matching variants
+print(paste0("Variants that hit hg2 mosaic tp vcf AND trio denovo v4: ", nrow(denovo_mosaic_tp_hg2_hits)))
+print(paste0("Variants that hit hg2 mosaic tp vcf, BUT NOT trio denovo v4: ", nrow(denovo_mosaic_tp_hg2_no_hits)))
+
+```
+
+#### II. FILTERING POTENTIAL MOSAIC DATABASE 
+
+```{r get_potential_mosaic_db}
+
+# Get HG002 potential mosaic database - strelka2 vcfeval FPs annotated with orthogonal bamreadcounts and GIAB v4.2.1 genomic stratifications
+
+draft_mosaic_db <- fread("~/Documents/mosaic_variants_project/draft_benchmark/v0.0.5_draft_mosaic_benchmark_db_NIST_RM/mosaic_variant_database_RM.tsv")
+print(paste0("v0.0.5 draft mosaic benchmark variants : ", nrow(draft_mosaic_db)))
+
+```
+
+##### Partition potential mosaic variant database into upperCI\<=0.03 and NON upperCI\<=0.03
+
+```{r upperCI_3}
+
+upper_CI3_df <- draft_mosaic_db %>%
+  filter(Ortho_NO_DUP_Upper_CI <= 0.03)
+  fwrite(upper_CI3_df, "1_upperCI_3_RM.tsv", sep = "\t")
+  
+not_upper_CI3_df<- draft_mosaic_db %>%    
+  filter(!(Ortho_NO_DUP_Upper_CI <= 0.03) | is.na(Ortho_NO_DUP_Upper_CI)) 
+  fwrite(not_upper_CI3_df, "1_not_upperCI_3_RM.tsv", sep = "\t")
+
+print(paste0("NO_DUP_upperCI <=0.03 : ", nrow(upper_CI3_df)))
+print(paste0("NOT NO_DUP_upperCI <=0.03 : ", nrow(not_upper_CI3_df)))  
+```
+
+##### Partition upperCI\<=0.03 non-matches using n_ci_pacbio filter 
+
+```{r n_ci_pacbio}
+
+#Using 0.5% quantile value for mosaic_readcounts_RM$n_ci_no_Dup and mosaic_readcounts_RM$Pacbio_depth filters
+
+n_ci_pacbio_yes_df <- not_upper_CI3_df %>%
+  filter(not_upper_CI3_df$n_ci_no_Dup < 138 | not_upper_CI3_df$Pacbio_depth < 52)
+
+n_ci_pacbio_no_df <- not_upper_CI3_df %>%
+  filter(!(not_upper_CI3_df$n_ci_no_Dup < 138 | not_upper_CI3_df$Pacbio_depth < 52))
+
+fwrite(n_ci_pacbio_yes_df, "2_n_ci_pacbio_yes_RM.tsv", sep = "\t")
+fwrite(n_ci_pacbio_no_df, "2_n_ci_pacbio_no_RM.tsv", sep = "\t")
+  
+print(paste0("not UpperCI <=0.03 and YES n_ci_pacbio filter : ", nrow(n_ci_pacbio_yes_df)))
+print(paste0("not UpperCI <=0.03 and NO n_ci_pacbio filter : ", nrow(n_ci_pacbio_no_df))) 
+```
+
+##### Partition upperCI\<=0.03 non-matches that are NO n_ci_pacbio using germline deletion OVERLAP and NO OVERLAP filter
+
+```{r filter_germline_indel_overlaps}
+
+#Partition remaining variants that overlap germline indels or next to insertions
+
+germline_indel_overlap_df <- n_ci_pacbio_no_df %>%
+  filter(Germline_Indel_Check == "Deletion_Overlap" | germline_insertion == "hit")
+
+germline_indel_no_overlap_df <- n_ci_pacbio_no_df %>%
+  filter(!(Germline_Indel_Check == "Deletion_Overlap" | germline_insertion == "hit"))
+
+fwrite(germline_indel_overlap_df, "3_germline_indel_overlaps_RM.tsv", sep = "\t")
+fwrite(germline_indel_no_overlap_df, "3_germline_indel_NON_overlaps_RM.tsv", sep ="\t")
+  
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, germline indel overlap : ", nrow(germline_indel_overlap_df)))
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap : ", nrow(germline_indel_no_overlap_df))) 
+```
+
+##### Partition NON germline overlaps using x_ci filter 
+
+```{r x_ci}
+
+x_ci_yes_df <- germline_indel_no_overlap_df[x_ci_no_Dup/n_ci_no_Dup > 0.5]
+x_ci_no_df <- germline_indel_no_overlap_df[!(x_ci_no_Dup/n_ci_no_Dup) > 0.5]
+
+fwrite(x_ci_yes_df, "4_x_ci_yes_RM.tsv", sep = "\t")              ###exclude from vcf
+fwrite(x_ci_no_df,"4_x_ci_no_RM.tsv", sep = "\t")
+
+print(paste0("NOT UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, YES x_ci_filter :", nrow(x_ci_yes_df)))
+print(paste0("NOT UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter :", nrow(x_ci_no_df))) 
+```
+
+##### Partition germline deletion NO OVERLAP, NO x_ci using easytomap and not_easytomap filter
+
+```{r easy_or_not_easytomap}
+####<---- AMEND to add correct df for subset
+
+easytomap_df <- subset(x_ci_no_df, grepl("^Easy",Genomic_Context))
+not_easytomap_df <-subset(x_ci_no_df, !grepl("^Easy",Genomic_Context))
+fwrite(easytomap_df, "5_easytomap_RM.tsv", sep = "\t" )
+fwrite(not_easytomap_df, "5_not_easytomap_RM.tsv", sep = "\t")
+
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, easytomap :", nrow(easytomap_df))) 
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, NOT_easytomap :", nrow(not_easytomap_df)))
+```
+
+##### Partition easytomap into lowerCI \>=0.05 and NOT \>=0.05
+
+```{r easytomap_lowerCI5_notlowerCI5}
+
+easy_lowerCI5_df <- easytomap_df %>%
+  filter(Ortho_NO_DUP_Lower_CI >= 0.05) 
+fwrite(easy_lowerCI5_df, "6_easytomap_lowerCI5_RM.tsv", sep = "\t")       ### variants for manual curation (decision tree green box)
+
+write_delim(easy_lowerCI5_df[, c("CHROM", "POS")], file = "6_list_hits_easytomap_lowerCI5.tsv", delim = "\t", col_names = TRUE)
+  
+easy_NOT_lowerCI5_df <- easytomap_df %>%
+  filter(!Ortho_NO_DUP_Lower_CI >= 0.05) 
+fwrite(easy_NOT_lowerCI5_df, "6_easytomap_not_lowerCI5_RM.tsv", sep = "\t")
+
+write_delim(easy_NOT_lowerCI5_df[, c("CHROM", "POS")], file = "6_list_no_hits_easytomap_lowerCI5_RM.tsv", delim = "\t", col_names = TRUE)
+
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, easytomap >=0.05: ", nrow(easy_lowerCI5_df)))
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, easytomap NOT >=0.05: ", nrow(easy_NOT_lowerCI5_df))) 
+```
+
+##### Partition easytomap, NOT lowerCI \>=0.05 into candidate and putative
+
+```{r easytomap_NOT_lowerCI5_cand_put}
+
+easy_NOT_lowerCI5_cand_df<- easy_NOT_lowerCI5_df %>%
+  filter(var_cat == 'candidate')
+fwrite(easy_NOT_lowerCI5_cand_df, "7_easytomap_not_lowerCI5_candidate_RM.tsv", sep = "\t")
+ 
+easy_NOT_lowerCI5_put_df <- easy_NOT_lowerCI5_df %>%
+  filter(var_cat != 'candidate')
+fwrite(easy_NOT_lowerCI5_put_df, "7_easytomap_not_lowerCI5_putative_RM.tsv", sep = "\t") 
+
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, easytomap NOT >=0.05, candidate: ", nrow(easy_NOT_lowerCI5_cand_df)))
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, easytomap NOT >=0.05, putative: ", nrow(easy_NOT_lowerCI5_put_df)))
+
+```
+
+##### Partition easytomap, NOT lowerCI \>=0.05, putative into pacbio alt depth \>=2 YES or NO filter
+
+```{r easytomap_lowerCI5_cand_put_pacbio_depth}
+
+easy_NOT_lowerCI5_put_pacbio_depth_yes_df <- easy_NOT_lowerCI5_put_df %>%
+  filter(Pacbio_alt_depth >= 2)
+ fwrite(easy_lowerCI5_df, "8_easytomap_not_lowerCI5_putative_pbio_depth_yes_RM.tsv", sep = "\t") 
+ 
+ easy_NOT_lowerCI5_put_pacbio_depth_no_df <- easy_NOT_lowerCI5_put_df %>%
+  filter(!(Pacbio_alt_depth >= 2))
+ fwrite(easy_lowerCI5_df, "8_easytomap_not_lowerCI5_putative_pbio_depth_no_RM.tsv", sep = "\t") 
+ 
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, easytomap NOT lowerCI >=0.05, putative, pacbio_alt_depth YES: ", nrow(easy_NOT_lowerCI5_put_pacbio_depth_yes_df)))
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, easytomap NOT lowerCI >=0.05, putative, pacbio_alt_depth NO: ", nrow(easy_NOT_lowerCI5_put_pacbio_depth_no_df)))
+
+```
+
+##### Partition NOT_easytomap using homopolymer or NON-homopolymer filter
+
+```{r noteasytomap_hompolymer_non_homopolymer}
+
+not_easy_homopol_df <- not_easytomap_df %>%
+  filter(homopolymer_region == "hit")
+fwrite(not_easy_homopol_df, "9_not_easy_homopolymer_RM.tsv", sep = "\t")  
+
+not_easy_NON_homopol_df <- not_easytomap_df %>%
+  filter(homopolymer_region == "homopolymer_region_no_hit")
+fwrite(not_easy_NON_homopol_df, "9_not_easy_NON_homopolymer_RM.tsv", sep = "\t")
+
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, not_easytomap, homopolymer: ", nrow(not_easy_homopol_df)))
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, not_easytomap, NON-homopolymer: ", nrow(not_easy_NON_homopol_df)))
+
+```
+
+##### Partition NOT_easytomap, NON-homopolymer using pacbio lowerCI \>= 0.05 YES or NO filter
+
+```{r noteasytomap_nonhompolymer_pacbio_lowerCI5_not}
+
+#Partition non-homopolymer into Pacbio LowerCI > 0.05 and NOT
+
+not_easy_NON_homopol_pacbio_lowerCI5_df <- not_easy_NON_homopol_df %>%
+  filter(Pacbio_Lower_CI >= 0.05) 
+  fwrite(not_easy_NON_homopol_pacbio_lowerCI5_df,"10_not_easy_NON_homopolymer_pbio_lowerCI5_RM.tsv", sep = "\t") ### variants for manual curation (decision tree green box)
+  
+  write_delim(not_easy_NON_homopol_pacbio_lowerCI5_df[, c("CHROM", "POS")], file = "10_list_hits_not_easy_NON_homopolymer_pbio_lowerCI5_RM.tsv", delim = "\t", col_names = TRUE)
+
+not_easy_NON_homopol_pacbio_NOT_lowerCI5_df <- not_easy_NON_homopol_df %>%
+  filter(!Pacbio_Lower_CI >= 0.05)
+  fwrite(not_easy_NON_homopol_pacbio_NOT_lowerCI5_df, "10_not_easy_NON_homopolymer_not_pbio_lowerCI5_RM.tsv", sep = "\t")  
+
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, not_easytomap, NON-homopolymer, pbio lowerCI >=0.05: ", nrow(not_easy_NON_homopol_pacbio_lowerCI5_df)))
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, not_easytomap, NON-homopolymer, NOT pbio lowerCI >=0.05: ", nrow(not_easy_NON_homopol_pacbio_NOT_lowerCI5_df)))
+
+```
+
+##### Partition NOT_easytomap, NON-homopolymer, pacbio lowerCI \>= 0.05 FAIL, into pacbio upperCI \< 0.03 YES or NO filter
+
+```{r noteasytomap_nonhompolymer_NOT_pacbio_lowerCI5_pacbio_upperCI3}
+
+not_easy_NON_homopol_NOT_pacbio_lowerCI5_pacbio_upperCI3_df <- not_easy_NON_homopol_pacbio_NOT_lowerCI5_df %>%
+   filter(Pacbio_Upper_CI < 0.03) 
+   fwrite(not_easy_NON_homopol_NOT_pacbio_lowerCI5_pacbio_upperCI3_df, "11_not_easy_NON_homopolymer_pbio_upperCI3_RM.tsv", sep = "\t") ### exclude vcf only
+
+not_easy_NON_homopol_NOT_pacbio_lowerCI5_pacbio_NOT_upperCI3_df <- not_easy_NON_homopol_pacbio_NOT_lowerCI5_df %>%
+   filter(!Pacbio_Upper_CI < 0.03)
+   fwrite(not_easy_NON_homopol_NOT_pacbio_lowerCI5_pacbio_NOT_upperCI3_df, "11_not_easy_NON_homopolymer_pbio_not_upperCI3_RM.tsv", sep = "\t") ### exclude vcf and bed
+
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, not_easytomap, NON-homopolymer, pbio upperCI < 0.03: ", nrow(not_easy_NON_homopol_NOT_pacbio_lowerCI5_pacbio_upperCI3_df)))
+print(paste0("not UpperCI <=0.03, NO n_ci_pacbio filter, NO germline indel overlap, NO x_ci_filter, not_easytomap, NON-homopolymer, NOT pbio upperCI < 0.03: ", nrow(not_easy_NON_homopol_NOT_pacbio_lowerCI5_pacbio_NOT_upperCI3_df)))
+
+```
+
+#### III. GET VARIANTS FOR MANUAL CURATION
+
+```{r get_variants_for_manual_curation, message = FALSE}
+
+# Variants for curation correspond to green squares in decision tree
+
+#Join easytomap lower >=5 and noteasytomap non-homopolymer pacbio lower CI > 5 dataframes
+
+variants_to_curate_df <- full_join(easy_lowerCI5_df, not_easy_NON_homopol_pacbio_lowerCI5_df) %>%
+  arrange(factor(CHROM, levels = chrom_order), POS, REF, ALT)
+
+fwrite(variants_to_curate_df, "variants_for_igv_curation_RM.tsv", sep = "\t") 
+
+```
+
+```{r variants_to_curate}
+
+print(paste0("Variants for IGV curation: ", nrow(variants_to_curate_df)))
+```
+
+##### Import manually curated variants and partition into include and exclude for new benchmark vcf
+
+```{r partition_manually_curated_variants, message = FALSE}
+
+#Import tsv of manually curated variants (135)
+
+curated_variants_all_df <- fread("igv_curated_variants_RM.tsv", sep = "\t") %>%
+  arrange(factor(CHROM, levels = chrom_order), POS, REF, ALT)
+
+#Mosaic variants to include in NIST RM benchmark vcf - only variants that are MOSAIC in RM_CURATION column
+
+curated_variants_include_vcf_df <- curated_variants_all_df %>%
+   filter(RM_CURATION == "MOSAIC") 
+
+fwrite(curated_variants_include_vcf_df, "igv_curated_variants_RM_include_vcf.tsv", sep = "\t")
+write_delim(curated_variants_include_vcf_df[, c("CHROM", "POS", "REF", "ALT")], file = "igv_curated_variants_RM_include_vcf_list.tsv", delim = "\t", col_names = TRUE)
+
+#Variants to exclude from benchmark vcf
+curated_variants_exclude_vcf_df <- anti_join(curated_variants_all_df, curated_variants_include_vcf_df)
+
+fwrite(curated_variants_exclude_vcf_df, "igv_curated_variants_RM_exclude_vcf.tsv", sep = "\t")
+write_delim(curated_variants_exclude_vcf_df[, c("CHROM", "POS","REF", "ALT")], file = "igv_curated_variants_RM_exclude_vcf_list.tsv", delim = "\t", col_names = TRUE)
+
+```
+
+```{r curated_variants_vcf_or_not}
+
+print(paste0("Manually curated variants to include in new mosaic benchmark vcf: ", nrow(curated_variants_include_vcf_df)))
+
+print(paste0("Manually curated variants to exclude from new mosaic benchmark vcf: ", nrow(curated_variants_exclude_vcf_df)))
+  
+```
+
+#### IV. EXCLUDE BED REGIONS
+
+##### Get regions to exclude from new benchmark bed
+
+```{r merge_decision_tree_variants_to_exclude_for_benchmark_bed}
+
+if (!dir.exists("exclude_regions")) {
+  dir.create("exclude_regions")
+}
+
+# Make df with regions to exclude from benchmark bed (corresponds to decision tree yellow squares)
+
+remove_from_bed_df <- bind_rows(denovo_db_df, easy_NOT_lowerCI5_cand_df, 
+                                easy_NOT_lowerCI5_put_pacbio_depth_yes_df, 
+                                not_easy_homopol_df, 
+                        not_easy_NON_homopol_NOT_pacbio_lowerCI5_pacbio_NOT_upperCI3_df) %>%
+                      select(CHROM, POS, REF, ALT) %>%
+                      arrange(factor(CHROM, levels = chrom_order), POS)
+
+#Create a new dataframe with the required columns for the BED file (considers both snvs and indels)
+exclusions_bed_df <- remove_from_bed_df %>% 
+  mutate(start = POS,
+         end = POS,
+         is_del = nchar(REF) > 1,
+         is_ins = nchar(ALT) > 1,
+         is_multi_base = nchar(gsub(",", "", ALT)) > 1,
+         start = if_else(is_del, POS - 1, start),
+         end = if_else(is_del, POS + nchar(REF) - 1, end),
+         end = if_else(is_ins, POS + nchar(ALT) - 1, end)) %>%
+  select(chrom = CHROM, start, end) 
+
+# Write df to BED file
+write.table(exclusions_bed_df,
+            file = "exclude_regions/decision_tree_regions_to_exclude_RM.bed",
+            sep = "\t",
+            quote = FALSE,
+            row.names = FALSE,
+            col.names = FALSE)
+
+print(paste0("Decision tree regions to exclude from benchmark bed: ", nrow(exclusions_bed_df)))
+
+```
+
+##### Get GIABv3.1 stratification (AllTandemRepeatsandHomopolymers) and prepare genome file
+
+```{r get_giab_strat_bed}
+
+download.file("https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/genome-stratifications/v3.1/GRCh38/LowComplexity/GRCh38_AllTandemRepeatsandHomopolymers_slop5.bed.gz", "exclude_regions/GRCh38_AllTandemRepeatsandHomopolymers_slop5.bed.gz")
+
+system("mamba activate hli_env")
+
+# Index reference
+system("samtools faidx GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.fai > GRCh38.fa.fai")
+
+# Prepare genome files with chromosome lengths
+system("cat GRCh38.fa.fai | cut -f 1,2 | grep -Ev '^[chr0-9XYM]_|^[chr0-9][0-9XYM]_|^chrUn_' > human.b38.genome")
+
+```
+
+##### Expand bed regions for exclusion from benchmark
+
+```{r expanded_regions_draft_benchmark}
+
+# bedtools commands (intersectBed, multiIntersectBed, mergeBed) to get expanded bed regions
+
+system("intersectBed -wa -a exclude_regions/GRCh38_AllTandemRepeatsandHomopolymers_slop5.bed.gz -b exclude_regions/decision_tree_regions_to_exclude_RM.bed | multiIntersectBed -i stdin exclude_regions/decision_tree_regions_to_exclude_RM.bed | mergeBed -i stdin > exclude_regions/decision_tree_regions_to_exclude_repeatexpanded_RM.bed")
+
+expanded_bed_df <- read.table("exclude_regions/decision_tree_regions_to_exclude_repeatexpanded_RM.bed", sep = "\t")
+
+print(paste0("Expanded bed regions: ", nrow(expanded_bed_df)))
+```
+
+##### Slop bed exclusion regions
+
+```{r slop_expanded_bed_regions}
+
+# Add slop (50bp) to each side of regions in expanded bed
+
+system("slopBed -i exclude_regions/decision_tree_regions_to_exclude_repeatexpanded_RM.bed -g human.b38.genome -b 50 > exclude_regions/decision_tree_regions_to_exclude_repeatexpanded_slop50_RM.bed")
+
+expanded_bed_slop_df <- read.table("exclude_regions/decision_tree_regions_to_exclude_repeatexpanded_slop50_RM.bed", sep = "\t")
+print(paste0("Expanded bed regions including slop: ", nrow(expanded_bed_slop_df)))
+```
+
+##### Create mosaic benchmark bed
+
+```{r exclude_expanded_bed_slop_regions}
+
+# Exclude expanded region of interest w/slop from draft benchmark bed
+
+system("subtractBed -a ~/git_repos/mosaic-benchmarking/data/draft_benchmark/GRCh38_aj-trio_v4.2.1_mosaic-target.bed -b exclude_regions/decision_tree_regions_to_exclude_repeatexpanded_slop50_RM.bed > exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM.bed")
+
+draft_benchmark_bed <- read.table("~/git_repos/mosaic-benchmarking/data/draft_benchmark/GRCh38_aj-trio_v4.2.1_mosaic-target.bed", sep = "\t") 
+
+new_benchmark_bed <- read.table("exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM.bed", sep = "\t")
+
+print(paste0("Regions in draft mosaic benchmark bed: ", nrow(draft_benchmark_bed)))
+print(paste0("Regions in new v0.0.4 benchmark bed after subtraction: ", nrow(new_benchmark_bed)))
+```
+
+##### Get draft mosaic BED summary
+
+```{r bedtools_summary_draft_mosaic_bed}
+
+#<---AMEND to convert to tidy or gt table -->#
+
+# Get draft mosaic bed summary
+
+input_file1 <- "~/git_repos/mosaic-benchmarking/data/draft_benchmark/GRCh38_aj-trio_v4.2.1_mosaic-target.bed"
+genome_file <- "human.b38.genome"
+
+draft_bed_summary <- system(paste0("bedtools summary -i ", input_file1, " -g ", genome_file, " > exclude_regions/original_mosaic_benchmark_bed_RM_summary.txt"))
+
+summary_new_bed <- paste("bedtools summary -i", input_file1, "-g", genome_file)  
+system(summary_new_bed) 
+
+```
+
+##### Get new mosaic BED summary after region exclusion
+
+```{r bedtools_summary_new_mosaic_bed}
+
+# Get new mosaic bed summary
+
+input_file2 <- "exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM.bed"
+
+new_bed_summary <- system(paste0("bedtools summary -i ", input_file2, " -g ", genome_file, " > exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_bed_RM_summary.txt"))
+
+summary_input_bed <- paste("bedtools summary -i", input_file2, "-g", genome_file)  
+system(summary_input_bed)
+
+```
+
+##### Check mosaic benchmark BED for RM benchmark variants
+
+```{r new_mosaic_bed_check_benchmark_vcf}
+
+# Confirm benchmark variants present in bed
+
+#system("bedtools intersect -a vcf_file -b bed_file > out.vcf")
+
+# Check for variants present outside of benchmark regions
+
+```
+
+##### Check mosaic benchmark BED for external validator FP variants
+
+```{r new_mosaic_bed_check_discord_external_FP}
+
+#List of discordant and external FPs generated from external val spreadsheet (18, and 3 of these present in bed but not in vcf - )
+
+# intersectBed -v -a external_validator_discordant_and_FP_snv_list.bed -b ~/Documents/mosaic_variants_project/draft_benchmark/final_vcf_bed_RM/HG002_GRCh38_new_mosaic_benchmark_RM.vcf -v | intersectBed -a stdin -b ~/Documents/mosaic_variants_project/draft_benchmark/final_vcf_bed_RM/HG002_GRCh38_new_mosaic_benchmark_RM.bed | less
+
+```
+
+#####  Exclude short (<50bp) regions and chr6:126382244 and chr10:106867519 from bed
+
+```{r new_mosaic_adjust_bed}
+
+# Review bed summary above
+# Confirm no NIST RM benchmark variants occur in regions <50bp 
+# Remove short regions  - minimum interval size is 1bp, so need to remove these
+
+system("awk '$3-$2>49' exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM.bed > exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM_gt49.bed")
+
+# chr6 126382244 - remove from both the vcf and bed
+# chr10: 106867519 and surrounding bases so can be treat parents as normal during tumor-normal simulation 
+
+system("intersectBed -wa -a exclude_regions/GRCh38_AllTandemRepeatsandHomopolymers_slop5.bed.gz -b exclude_regions/chr6_126382244_chr10_106867519.bed | multiIntersectBed -i stdin exclude_regions/chr6_126382244_chr10_106867519.bed | mergeBed -i stdin > exclude_regions/chr6_126382244_chr10_106867519_regions_to_exclude_repeatexpanded_RM.bed")
+
+expanded_bed2_df <- read.table("exclude_regions/chr6_126382244_chr10_106867519_regions_to_exclude_repeatexpanded_RM.bed", sep = "\t")
+
+print(paste0("Expanded bed regions: ", nrow(expanded_bed2_df)))
+
+system("slopBed -i exclude_regions/chr6_126382244_chr10_106867519_regions_to_exclude_repeatexpanded_RM.bed -g human.b38.genome -b 50 > exclude_regions/chr6_126382244_chr10_106867519_regions_to_exclude_repeatexpanded_slop50_RM.bed")
+
+expanded_bed2_slop_df <- read.table("exclude_regions/chr6_126382244_chr10_106867519_regions_to_exclude_repeatexpanded_slop50_RM.bed", sep = "\t")
+print(paste0("Expanded bed regions including slop: ", nrow(expanded_bed2_slop_df)))
+
+system("subtractBed -a exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM_gt49.bed -b exclude_regions/chr6_126382244_chr10_106867519_regions_to_exclude_repeatexpanded_slop50_RM.bed > exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM_gt49_chr6_chr10_variants_removed.bed")
+
+input_file3 <- "exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM_gt49_chr6_chr10_variants_removed.bed"
+
+new_bed_summary <- system(paste0("bedtools summary -i ", input_file3, " -g ", genome_file, " > exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM_gt49_chr6_chr10_variants_removed.bed_summary.txt"))
+
+summary_input_bed <- paste("bedtools summary -i", input_file3, "-g", genome_file)  
+system(summary_input_bed)
+
+```
+
+##### Get regions to exclude from from draft benchmark VCF
+
+```{r get_regions_to_exclude_from_draft_mosaic_benchmark_vcf}
+
+exclude_from_vcf <- draft_mosaic_db %>%
+                    anti_join(curated_variants_include_vcf_df, by = c("CHROM", "POS", "REF", "ALT")) %>%
+                    arrange(factor(CHROM, levels = chrom_order), POS)
+
+exclusions_vcf_df <- exclude_from_vcf %>% 
+  mutate(start = POS,
+         end = POS,
+         is_del = nchar(REF) > 1,
+         is_ins = nchar(ALT) > 1,
+         is_multi_base = nchar(gsub(",", "", ALT)) > 1,
+         start = if_else(is_del, POS - 1, start),
+         end = if_else(is_del, POS + nchar(REF) - 1, end),
+         end = if_else(is_ins & !is_multi_base, POS + nchar(ALT) - 1, end)) %>%
+  select(chrom = CHROM, start, end) 
+
+write.table(exclusions_vcf_df,
+            file = "exclude_regions/exclude_regions_from_vcf_RM.bed",
+            sep = "\t",
+            quote = FALSE,
+            row.names = FALSE,
+            col.names = FALSE)
+
+print(paste0("Decision tree variants to exclude from benchmark vcf: ", nrow(exclusions_vcf_df)))
+
+```
+
+##### Create new mosaic benchmark VCF
+
+```{r bedtools_subtract_for_final_benchmark_vcf, warning=FALSE}
+
+# Create new mosaic benchmark vcf via bedtools subtract
+
+system("bedtools subtract -a ~/git_repos/mosaic-benchmarking/data/draft_benchmark/GRCh38_HG002_v0.0.1_mosaic-benchmark.vcf -b exclude_regions/exclude_regions_from_vcf_RM.bed -header > exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM.vcf")
+
+```
+
+##### Get draft and new benchmark VCF counts
+
+```{r compare_draft_to_new_benchmark, results = 'hide'}
+
+draft_benchmark_vcf <- read.vcfR("~/git_repos/mosaic-benchmarking/data/draft_benchmark/GRCh38_HG002_v0.0.1_mosaic-benchmark.vcf")
+
+new_mosaic_benchmark_vcf_df <- read.table("exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM.vcf", sep = "\t")
+```
+
+```{r draft_new_bench_counts}
+print(paste0("Draft mosaic benchmark vcf variants: ", nrow(draft_benchmark_vcf)))
+
+print(paste0("Variants in new mosaic benchmark vcf after subtraction: ", nrow(new_mosaic_benchmark_vcf_df)))
+
+```
+
+#### V. DISCORDANCE CHECK
+
+```{r discordance_check, warning=FALSE}
+
+#Generate new mosaic benchmark df
+new_vcf <- read.table("exclude_regions/HG002_GRCh38_new_draft_mosaic_benchmark_RM.vcf", header = FALSE, comment.char = "#", sep = "\t")
+
+#Rename columns
+new_vcf_df <- select(new_vcf, V1, V2)
+colnames(new_vcf_df) <- c("CHROM", "POS")
+
+#Generate df for curated variants to include in vcf
+include_in_vcf_df<- select(curated_variants_include_vcf_df, CHROM, POS)
+
+# Get discordant variants from new benchmark vcf and include vcf dataframes  ##this should be 0 
+discord_check <- anti_join(new_vcf_df, include_in_vcf_df, by = c("CHROM", "POS")) 
+
+# Compare discordant variants to draft mvdb
+discord_check_against_mvdb <- inner_join(discord_check, draft_mosaic_db, by = c("CHROM", "POS")) ##this should be 0 
+
+print(paste0("Variants in new benchmark vcf that do not match include_in_vcf_df (discordant) : ", nrow(discord_check)))
+
+print(paste0("Discordant variants that hit mvdb: ", nrow(discord_check_against_mvdb)))
+
+```
+
